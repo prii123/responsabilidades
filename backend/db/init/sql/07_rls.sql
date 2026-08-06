@@ -19,14 +19,16 @@ ALTER TABLE app.responsabilidades_cliente ENABLE ROW LEVEL SECURITY;
 CREATE POLICY rc_admin_all ON app.responsabilidades_cliente
   FOR ALL TO app_admin USING (true) WITH CHECK (true);
 
+-- Sin filtrar por estado = 'Activa': si no, al reasignar un cliente el
+-- profesional anterior perdería visibilidad hasta de su propio historial
+-- (v_eventos/v_evidencias hacen JOIN contra esta tabla, y RLS en un JOIN
+-- oculta la fila completa si cualquiera de los lados no es visible).
 CREATE POLICY rc_profesional_select ON app.responsabilidades_cliente
   FOR SELECT TO app_profesional
   USING (
     id_cliente IN (
       SELECT id_cliente FROM app.asignacion_cliente_profesional
       WHERE id_profesional = app.current_profesional_id()
-        AND estado = 'Activa'
-        AND anio = responsabilidades_cliente.anio
     )
   );
 

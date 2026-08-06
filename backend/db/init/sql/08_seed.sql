@@ -16,15 +16,15 @@ INSERT INTO app.municipios (cod_municipio, nombre) VALUES
   ('11001', 'Bogotá D.C.'),
   ('76001', 'Cali');
 
-INSERT INTO app.grupo_responsabilidad (nombre) VALUES
-  ('Nacional'), ('Departamental'), ('Municipal');
+INSERT INTO app.grupo_responsabilidad (nombre, tipo) VALUES
+  ('Tributario', 'Nacional'), ('Comercial', 'Departamental'), ('Legal', 'Municipal');
 
 INSERT INTO app.subgrupo_responsabilidad (id_grupo, nombre) VALUES
-  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE nombre = 'Nacional'), 'Renta y Patrimonio'),
-  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE nombre = 'Nacional'), 'IVA'),
-  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE nombre = 'Nacional'), 'Retención en la Fuente'),
-  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE nombre = 'Nacional'), 'Facturación Electrónica'),
-  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE nombre = 'Municipal'), 'ICA');
+  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE tipo = 'Nacional'), 'Renta y Patrimonio'),
+  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE tipo = 'Nacional'), 'IVA'),
+  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE tipo = 'Nacional'), 'Retención en la Fuente'),
+  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE tipo = 'Nacional'), 'Facturación Electrónica'),
+  ((SELECT id_grupo FROM app.grupo_responsabilidad WHERE tipo = 'Municipal'), 'ICA');
 
 INSERT INTO app.responsabilidad
   (auto_numero, codigo_dian, codigo_formulario, nombre, id_subgrupo, cod_municipio, tipo, sancion)

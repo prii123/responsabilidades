@@ -1,40 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { useApiGet } from "../../api/hooks";
 import { apiPatch, apiRpc, ApiError } from "../../api/client";
+import Modal from "../../components/Modal";
 import type { Profesional, Rol, Usuario } from "../../api/types";
-
-const initialForm = { email: "", password: "", rol: "app_profesional" as Rol, id_profesional: "" };
 
 export default function UsuariosPage() {
   const usuarios = useApiGet<Usuario[]>("usuarios", { order: "email" });
   const profesionales = useApiGet<Profesional[]>("profesionales", { order: "nombre" });
-
-  const [form, setForm] = useState(initialForm);
+  const [modalAbierto, setModalAbierto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState(false);
-
-  async function crear(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setOk(null);
-    setGuardando(true);
-    try {
-      await apiRpc("crear_usuario", {
-        email: form.email,
-        password: form.password,
-        rol: form.rol,
-        id_profesional: form.rol === "app_profesional" ? Number(form.id_profesional) : null,
-      });
-      setForm(initialForm);
-      setOk("Usuario creado. Ya puede iniciar sesión con esa contraseña.");
-      usuarios.recargar();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear el usuario");
-    } finally {
-      setGuardando(false);
-    }
-  }
 
   async function alternarActivo(u: Usuario) {
     setError(null);
@@ -48,58 +23,22 @@ export default function UsuariosPage() {
 
   function nombreProfesional(id: number | null) {
     if (!id) return "—";
-    return profesionales.data?.find((p) => p.id_profesional === id)?.nombre ?? id;
+    return profesionales.data?.find((p) => p.id_profesional === id)?.nombre ?? String(id);
   }
 
   return (
     <div className="page">
-      <h1>Usuarios</h1>
-      <p className="page-subtitle">
-        Cuentas de acceso al sistema (login local, ver nota de Cognito en el backend). Un profesional necesita un
-        usuario aquí, enlazado a su registro en Profesionales, para poder iniciar sesión.
-      </p>
-
-      <form className="grid-form card" onSubmit={crear}>
-        <label>
-          Correo
-          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-        </label>
-        <label>
-          Contraseña
-          <input
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-            minLength={8}
-          />
-        </label>
-        <label>
-          Rol
-          <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value as Rol, id_profesional: "" })}>
-            <option value="app_profesional">Profesional</option>
-            <option value="app_admin">Administrador</option>
-          </select>
-        </label>
-        {form.rol === "app_profesional" && (
-          <label>
-            Profesional
-            <select value={form.id_profesional} onChange={(e) => setForm({ ...form, id_profesional: e.target.value })} required>
-              <option value="">Seleccione…</option>
-              {profesionales.data?.map((p) => (
-                <option key={p.id_profesional} value={p.id_profesional}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <div className="span-2">
-          <button type="submit" disabled={guardando}>
-            {guardando ? "Creando…" : "Crear usuario"}
-          </button>
+      <div className="page-header">
+        <div>
+          <h1>Usuarios</h1>
+          <p className="page-subtitle">
+            Cuentas de acceso al sistema (login local, ver nota de Cognito en el backend). Un profesional necesita un
+            usuario aquí, enlazado a su registro en Profesionales, para poder iniciar sesión.
+          </p>
         </div>
-      </form>
+        <button onClick={() => setModalAbierto(true)}>+ Nuevo usuario</button>
+      </div>
+
       {error && <p className="form-error">{error}</p>}
       {ok && <p className="form-ok">{ok}</p>}
 
@@ -128,9 +67,110 @@ export default function UsuariosPage() {
                 </td>
               </tr>
             ))}
+            {usuarios.data.length === 0 && (
+              <tr>
+                <td colSpan={5} className="empty-cell">
+                  Todavía no hay usuarios.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}
+
+      {modalAbierto && (
+        <NuevoUsuarioModal
+          profesionales={profesionales.data ?? []}
+          onClose={() => setModalAbierto(false)}
+          onCreado={() => {
+            setModalAbierto(false);
+            setOk("Usuario creado. Ya puede iniciar sesión con esa contraseña.");
+            usuarios.recargar();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function NuevoUsuarioModal({
+  profesionales,
+  onClose,
+  onCreado,
+}: {
+  profesionales: Profesional[];
+  onClose: () => void;
+  onCreado: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rol, setRol] = useState<Rol>("app_profesional");
+  const [idProfesional, setIdProfesional] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  async function crear(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setGuardando(true);
+    try {
+      await apiRpc("crear_usuario", {
+        email,
+        password,
+        rol,
+        id_profesional: rol === "app_profesional" ? Number(idProfesional) : null,
+      });
+      onCreado();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo crear el usuario");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <Modal title="Nuevo usuario" onClose={onClose}>
+      <form onSubmit={crear} className="flex flex-col gap-4">
+        <label>
+          Correo
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+        </label>
+        <label>
+          Contraseña
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+        </label>
+        <label>
+          Rol
+          <select value={rol} onChange={(e) => { setRol(e.target.value as Rol); setIdProfesional(""); }}>
+            <option value="app_profesional">Profesional</option>
+            <option value="app_admin">Administrador</option>
+          </select>
+        </label>
+        {rol === "app_profesional" && (
+          <label>
+            Profesional
+            <select value={idProfesional} onChange={(e) => setIdProfesional(e.target.value)} required>
+              <option value="">Seleccione…</option>
+              {profesionales.map((p) => (
+                <option key={p.id_profesional} value={p.id_profesional}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {error && <p className="form-error">{error}</p>}
+
+        <div className="modal-actions">
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="submit" disabled={guardando}>
+            {guardando ? "Creando…" : "Crear usuario"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

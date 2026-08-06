@@ -156,8 +156,13 @@ RETURNS app.asignacion_cliente_profesional AS $$
   SELECT * FROM app.f_asignar_cliente_profesional(cliente, profesional, anio);
 $$ LANGUAGE sql;
 
-CREATE OR REPLACE FUNCTION api.generar_eventos(asignacion int) RETURNS int AS $$
-  SELECT app.f_generar_eventos(asignacion);
+CREATE OR REPLACE FUNCTION api.generar_eventos(asignacion int, anio int) RETURNS int AS $$
+  SELECT app.f_generar_eventos(asignacion, anio);
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION api.reasignar_profesional(cliente int, nuevo_profesional int)
+RETURNS app.asignacion_cliente_profesional AS $$
+  SELECT * FROM app.f_reasignar_profesional(cliente, nuevo_profesional);
 $$ LANGUAGE sql;
 
 CREATE OR REPLACE FUNCTION api.registrar_evidencia(evento int, observaciones text, archivo text, horas numeric)
@@ -210,14 +215,16 @@ GRANT SELECT ON api.v_eventos, api.v_evidencias, api.dashboard_resumen TO app_ad
 GRANT SELECT, UPDATE, DELETE ON api.usuarios TO app_admin;
 
 GRANT EXECUTE ON FUNCTION api.asignar_cliente_profesional(int, int, int) TO app_admin;
-GRANT EXECUTE ON FUNCTION api.generar_eventos(int) TO app_admin;
+GRANT EXECUTE ON FUNCTION api.generar_eventos(int, int) TO app_admin;
+GRANT EXECUTE ON FUNCTION api.reasignar_profesional(int, int) TO app_admin;
 GRANT EXECUTE ON FUNCTION api.marcar_vencidos() TO app_admin;
 GRANT EXECUTE ON FUNCTION api.registrar_evidencia(int, text, text, numeric) TO app_admin;
 GRANT EXECUTE ON FUNCTION api.crear_usuario(text, text, text, int) TO app_admin;
 GRANT EXECUTE ON FUNCTION api.cambiar_password_usuario(int, text) TO app_admin;
 
 GRANT EXECUTE ON FUNCTION app.f_asignar_cliente_profesional(int, int, int) TO app_admin;
-GRANT EXECUTE ON FUNCTION app.f_generar_eventos(int) TO app_admin;
+GRANT EXECUTE ON FUNCTION app.f_generar_eventos(int, int) TO app_admin;
+GRANT EXECUTE ON FUNCTION app.f_reasignar_profesional(int, int) TO app_admin;
 GRANT EXECUTE ON FUNCTION app.f_marcar_vencidos() TO app_admin;
 GRANT EXECUTE ON FUNCTION app.f_registrar_evidencia(int, text, text, numeric) TO app_admin, app_profesional;
 

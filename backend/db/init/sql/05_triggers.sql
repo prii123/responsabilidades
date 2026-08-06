@@ -4,17 +4,18 @@
 -- ============================================================
 
 -- Regla 1: un cliente no puede asignarse a un profesional si no tiene al menos
--- una responsabilidad ACTIVA para ese mismo año.
+-- una responsabilidad ACTIVA (en cualquier año — la asignación ya no es por
+-- año, ver 02_schema.sql).
 CREATE OR REPLACE FUNCTION app.trg_asignacion_regla1() RETURNS trigger AS $$
 DECLARE v_count int;
 BEGIN
   SELECT count(*) INTO v_count
   FROM app.responsabilidades_cliente
-  WHERE id_cliente = NEW.id_cliente AND anio = NEW.anio AND estado = 'Activa';
+  WHERE id_cliente = NEW.id_cliente AND estado = 'Activa';
 
   IF v_count = 0 THEN
-    RAISE EXCEPTION 'Regla 1: el cliente % no tiene responsabilidades activas para %, no se puede asignar a un profesional',
-      NEW.id_cliente, NEW.anio;
+    RAISE EXCEPTION 'Regla 1: el cliente % no tiene responsabilidades activas, no se puede asignar a un profesional',
+      NEW.id_cliente;
   END IF;
 
   RETURN NEW;
@@ -26,27 +27,28 @@ CREATE TRIGGER trg_asignacion_regla1
   FOR EACH ROW EXECUTE FUNCTION app.trg_asignacion_regla1();
 
 -- Nota Regla 2 ("toda responsabilidad del cliente queda con profesional
--- responsable"): se cumple por construcción, ya que la asignación es a nivel
--- de cliente-año (no por responsabilidad individual): al asignar el cliente,
--- f_generar_eventos cubre TODAS sus responsabilidades activas de ese año.
+-- responsable"): se cumple por construcción, ya que la asignación cubre al
+-- cliente completo (no por responsabilidad individual): al asignar o
+-- reasignar, f_generar_eventos cubre TODAS sus responsabilidades activas del
+-- año que se genere.
 
--- Coherencia: un evento debe pertenecer al mismo cliente y año en su FK a
+-- Coherencia: un evento debe pertenecer al mismo cliente en su FK a
 -- responsabilidades_cliente y en su FK a la asignación (evita mezclar datos
--- de asignaciones/clientes distintos aunque alguien inserte a mano).
+-- de asignaciones/clientes distintos aunque alguien inserte o reasigne a mano).
 CREATE OR REPLACE FUNCTION app.trg_evento_coherencia() RETURNS trigger AS $$
 DECLARE
-  v_cliente_rc int; v_anio_rc int;
-  v_cliente_asig int; v_anio_asig int;
+  v_cliente_rc int;
+  v_cliente_asig int;
 BEGIN
-  SELECT id_cliente, anio INTO v_cliente_rc, v_anio_rc
+  SELECT id_cliente INTO v_cliente_rc
   FROM app.responsabilidades_cliente WHERE id_responsabilidad_cliente = NEW.id_responsabilidad_cliente;
 
-  SELECT id_cliente, anio INTO v_cliente_asig, v_anio_asig
+  SELECT id_cliente INTO v_cliente_asig
   FROM app.asignacion_cliente_profesional WHERE id_asignacion_cliente = NEW.id_asignacion_cliente;
 
-  IF v_cliente_rc IS DISTINCT FROM v_cliente_asig OR v_anio_rc IS DISTINCT FROM v_anio_asig THEN
-    RAISE EXCEPTION 'El evento mezcla una responsabilidad de cliente/año (%,%) con una asignación de cliente/año (%,%)',
-      v_cliente_rc, v_anio_rc, v_cliente_asig, v_anio_asig;
+  IF v_cliente_rc IS DISTINCT FROM v_cliente_asig THEN
+    RAISE EXCEPTION 'El evento mezcla una responsabilidad del cliente % con una asignación del cliente %',
+      v_cliente_rc, v_cliente_asig;
   END IF;
 
   RETURN NEW;

@@ -18,7 +18,12 @@ CREATE TABLE app.municipios (
 
 CREATE TABLE app.grupo_responsabilidad (
   id_grupo serial PRIMARY KEY,
-  nombre   text NOT NULL UNIQUE
+  nombre   text NOT NULL UNIQUE,
+  -- Nivel territorial del grupo. Coincidía con "nombre" en los 3 grupos
+  -- originales del documento fuente, pero se modela aparte para que el
+  -- nombre pueda diversificarse (ej. distintas autoridades municipales) sin
+  -- perder una clasificación territorial fiable para filtrar/validar.
+  tipo     text NOT NULL CHECK (tipo IN ('Nacional', 'Departamental', 'Municipal'))
 );
 
 CREATE TABLE app.subgrupo_responsabilidad (
@@ -123,18 +128,24 @@ CREATE TABLE app.responsabilidades_cliente (
   UNIQUE (id_cliente, id_responsabilidad, anio)
 );
 
+-- Asignación PERMANENTE (no por año): un cliente tiene un único profesional
+-- responsable hasta que se reasigna explícitamente (app.f_reasignar_profesional).
+-- fecha_fin queda NULL mientras está activa; se completa al reasignar, y la
+-- fila vieja se conserva (estado Inactiva) como historial de quién fue
+-- responsable en cada periodo.
 CREATE TABLE app.asignacion_cliente_profesional (
   id_asignacion_cliente serial PRIMARY KEY,
   id_cliente       int NOT NULL REFERENCES app.clientes (id_cliente),
   id_profesional   int NOT NULL REFERENCES app.profesionales (id_profesional),
-  anio             int NOT NULL,
   fecha_asignacion date NOT NULL DEFAULT current_date,
-  estado           text NOT NULL DEFAULT 'Activa' CHECK (estado IN ('Activa', 'Inactiva'))
+  fecha_fin        date,
+  estado           text NOT NULL DEFAULT 'Activa' CHECK (estado IN ('Activa', 'Inactiva')),
+  CHECK (estado = 'Activa' OR fecha_fin IS NOT NULL)
 );
 
--- Un cliente solo puede tener UNA asignación activa por año.
+-- Un cliente solo puede tener UNA asignación activa a la vez.
 CREATE UNIQUE INDEX asignacion_activa_unica
-  ON app.asignacion_cliente_profesional (id_cliente, anio)
+  ON app.asignacion_cliente_profesional (id_cliente)
   WHERE estado = 'Activa';
 
 -- El evento cuelga de la fila cliente-responsabilidad-año (no de la responsabilidad

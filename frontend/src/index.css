@@ -195,6 +195,22 @@
     @apply text-[13px] text-muted;
   }
 
+  /* Título + acción principal en una fila; el subtítulo va debajo, a todo lo
+     ancho, para que quepa sin empujar el botón. */
+  .page-header {
+    @apply mb-1 flex items-start justify-between gap-4;
+  }
+  .page-header h1 {
+    @apply mb-0;
+  }
+
+  .section-header {
+    @apply mb-3.5 flex items-center justify-between gap-4;
+  }
+  .section-header h2 {
+    @apply mb-0;
+  }
+
   /* ---------- Botones ---------- */
 
   .btn-secondary {

@@ -20,6 +20,7 @@ export interface Municipio {
 export interface GrupoResponsabilidad {
   id_grupo: number;
   nombre: string;
+  tipo: Ambito;
 }
 
 export interface SubgrupoResponsabilidad {
@@ -99,8 +100,8 @@ export interface Asignacion {
   id_asignacion_cliente: number;
   id_cliente: number;
   id_profesional: number;
-  anio: number;
   fecha_asignacion: string;
+  fecha_fin: string | null;
   estado: EstadoActivo;
 }
 
