@@ -1,0 +1,11 @@
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${VITE_API_URL:?falta VITE_API_URL en .env — URL pública del backend}
+        VITE_PRESIGN_URL: ${VITE_PRESIGN_URL:?falta VITE_PRESIGN_URL en .env — URL pública de presign-service}
+    container_name: responsabilidades_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"

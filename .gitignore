@@ -1,0 +1,12 @@
+# Red de seguridad a nivel raíz — cada carpeta (backend/, frontend/,
+# presign-service/) ya tiene su propio .gitignore más específico.
+
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+.DS_Store
+Thumbs.db

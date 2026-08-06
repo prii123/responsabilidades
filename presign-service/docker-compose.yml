@@ -1,0 +1,8 @@
+services:
+  presign-service:
+    build: .
+    container_name: responsabilidades_presign
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${PORT:-3001}:3001"

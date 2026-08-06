@@ -1,0 +1,86 @@
+services:
+  db:
+    image: postgres:16
+    container_name: responsabilidades_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-responsabilidades}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?falta POSTGRES_SUPERUSER_PASSWORD en .env}
+      # Variables leídas por db/init/00_bootstrap.sh (no son variables nativas de postgres)
+      AUTHENTICATOR_PASSWORD: ${AUTHENTICATOR_PASSWORD:?falta AUTHENTICATOR_PASSWORD en .env}
+      MAINTENANCE_PASSWORD: ${MAINTENANCE_PASSWORD:?falta MAINTENANCE_PASSWORD en .env}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?falta APP_JWT_SECRET en .env}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin12345}
+      SEED_PROFESIONAL_PASSWORD: ${SEED_PROFESIONAL_PASSWORD:-profesional12345}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: postgrest/postgrest:v12.2.3
+    container_name: responsabilidades_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # PostgREST no interpola ${VAR} dentro de postgrest.conf, así que la
+    # configuración real se pasa como variables PGRST_* (equivalentes 1:1 a
+    # las claves documentadas en postgrest.conf, que queda como referencia
+    # legible de qué significa cada una).
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${AUTHENTICATOR_PASSWORD}@db:5432/${POSTGRES_DB:-responsabilidades}
+      PGRST_DB_SCHEMAS: api
+      PGRST_DB_ANON_ROLE: web_anon
+      PGRST_DB_USE_LEGACY_GUCS: "true"
+      PGRST_JWT_SECRET: ${APP_JWT_SECRET}
+      PGRST_JWT_SECRET_IS_BASE64: "false"
+      PGRST_DB_MAX_ROWS: "1000"
+      PGRST_SERVER_PORT: "3000"
+      PGRST_SERVER_HOST: "*"
+      PGRST_LOG_LEVEL: "info"
+    ports:
+      - "${POSTGREST_PORT:-3000}:3000"
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    container_name: responsabilidades_swagger
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_URL: http://localhost:${POSTGREST_PORT:-3000}/
+    ports:
+      - "${SWAGGER_PORT:-8080}:8080"
+
+  # Mantenimiento periódico: marca como "Vencido" los eventos Pendiente cuya
+  # fecha_limite ya pasó (Regla 4). Se conecta directo a Postgres con el rol
+  # app_maintenance (no pasa por PostgREST/JWT, es un proceso interno).
+  scheduler:
+    image: postgres:16
+    container_name: responsabilidades_scheduler
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${MAINTENANCE_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-responsabilidades}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          echo "[scheduler] $(date -Is) ejecutando app.f_marcar_vencidos()"
+          psql -h db -U app_maintenance -d "$$POSTGRES_DB" -c "SELECT app.f_marcar_vencidos();" || true
+          sleep 3600
+        done
+
+volumes:
+  db_data:
