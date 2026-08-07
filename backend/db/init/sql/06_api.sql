@@ -124,30 +124,11 @@ CREATE VIEW api.dashboard_resumen WITH (security_invoker = true) AS
   GROUP BY ap.id_profesional, p.nombre;
 
 -- ---------- Usuarios (cuentas de acceso, ver 03_auth.sql) ----------
--- Nunca se expone password_hash. La contraseña solo entra/cambia vía RPC
--- (api.crear_usuario / api.cambiar_password_usuario), que la hashean con
--- pgcrypto antes de guardarla. La vista sí es UPDATABLE para email/rol/
--- id_profesional/activo (columnas simples de una sola tabla).
+-- Solo lectura desde PostgREST: crear/activar/desactivar usuarios se hace en
+-- Cognito (presign-service, rutas /usuarios), que además refleja el cambio
+-- aquí a través del rol app_user_sync (conexión directa, no vía PostgREST).
 CREATE VIEW api.usuarios WITH (security_invoker = true) AS
-  SELECT id_usuario, email, rol, id_profesional, activo FROM app.usuarios;
-
-CREATE OR REPLACE FUNCTION api.crear_usuario(email text, password text, rol text, id_profesional int)
-RETURNS api.usuarios AS $$
-DECLARE v_row app.usuarios;
-BEGIN
-  INSERT INTO app.usuarios (email, password_hash, rol, id_profesional)
-  VALUES (crear_usuario.email, crypt(crear_usuario.password, gen_salt('bf')), crear_usuario.rol, crear_usuario.id_profesional)
-  RETURNING * INTO v_row;
-
-  RETURN (v_row.id_usuario, v_row.email, v_row.rol, v_row.id_profesional, v_row.activo)::api.usuarios;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION api.cambiar_password_usuario(id_usuario int, password text) RETURNS void AS $$
-  UPDATE app.usuarios
-  SET password_hash = crypt(cambiar_password_usuario.password, gen_salt('bf'))
-  WHERE id_usuario = cambiar_password_usuario.id_usuario;
-$$ LANGUAGE sql SECURITY DEFINER;
+  SELECT id_usuario, email, rol, id_profesional, activo, sub FROM app.usuarios;
 
 -- ---------- RPC (envoltorios delgados sobre app.f_*) ----------
 
@@ -195,9 +176,9 @@ TO app_admin;
 GRANT SELECT, UPDATE ON app.eventos_calendario TO app_admin;
 GRANT SELECT, INSERT, UPDATE ON app.asignacion_cliente_profesional TO app_admin;
 
--- Usuarios: sin INSERT directo (password_hash no está en la vista, se hashea
--- solo vía RPC); SELECT/UPDATE sí para poder editar email/rol/activo.
-GRANT SELECT, UPDATE, DELETE ON app.usuarios TO app_admin;
+-- Usuarios: solo lectura desde PostgREST. Crear/activar/desactivar se hace
+-- vía presign-service (rol app_user_sync), ver 03_auth.sql.
+GRANT SELECT ON app.usuarios TO app_admin;
 
 -- Las columnas "serial" necesitan además USAGE sobre su secuencia (si no, el
 -- INSERT falla con "permission denied for sequence ..." al calcular el default).
@@ -212,15 +193,13 @@ TO app_admin;
 
 GRANT SELECT, UPDATE ON api.eventos TO app_admin;
 GRANT SELECT ON api.v_eventos, api.v_evidencias, api.dashboard_resumen TO app_admin;
-GRANT SELECT, UPDATE, DELETE ON api.usuarios TO app_admin;
+GRANT SELECT ON api.usuarios TO app_admin;
 
 GRANT EXECUTE ON FUNCTION api.asignar_cliente_profesional(int, int, int) TO app_admin;
 GRANT EXECUTE ON FUNCTION api.generar_eventos(int, int) TO app_admin;
 GRANT EXECUTE ON FUNCTION api.reasignar_profesional(int, int) TO app_admin;
 GRANT EXECUTE ON FUNCTION api.marcar_vencidos() TO app_admin;
 GRANT EXECUTE ON FUNCTION api.registrar_evidencia(int, text, text, numeric) TO app_admin;
-GRANT EXECUTE ON FUNCTION api.crear_usuario(text, text, text, int) TO app_admin;
-GRANT EXECUTE ON FUNCTION api.cambiar_password_usuario(int, text) TO app_admin;
 
 GRANT EXECUTE ON FUNCTION app.f_asignar_cliente_profesional(int, int, int) TO app_admin;
 GRANT EXECUTE ON FUNCTION app.f_generar_eventos(int, int) TO app_admin;

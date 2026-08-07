@@ -175,13 +175,17 @@ CREATE TABLE app.evidencias (
 );
 
 -- ============================================================
--- AUTENTICACIÓN LOCAL (placeholder de AWS Cognito, ver 03_auth.sql)
+-- AUTENTICACIÓN — AWS Cognito (ver 03_auth.sql)
 -- ============================================================
+-- La contraseña vive únicamente en Cognito. Esta tabla solo mapea el "sub"
+-- del usuario de Cognito a su id_profesional (para RLS) y guarda una copia
+-- de rol/email para mostrar en el panel de administración. La mantiene
+-- presign-service (rutas /usuarios) vía el rol app_user_sync.
 
 CREATE TABLE app.usuarios (
   id_usuario     serial PRIMARY KEY,
+  sub            text NOT NULL UNIQUE,
   email          text NOT NULL UNIQUE,
-  password_hash  text NOT NULL,
   rol            text NOT NULL CHECK (rol IN ('app_admin', 'app_profesional')),
   id_profesional int REFERENCES app.profesionales (id_profesional),
   activo         boolean NOT NULL DEFAULT true

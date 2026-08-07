@@ -149,11 +149,17 @@ SELECT app.f_registrar_evidencia(
   3.5
 );
 
--- ---------- Usuarios de acceso (login local, ver 03_auth.sql) ----------
+-- ---------- Usuarios de acceso (ver 03_auth.sql) ----------
+-- El "sub" es el identificador del usuario en el User Pool de Cognito
+-- (arn:aws:cognito-idp:us-east-1:713881794009:userpool/us-east-1_6wQOXsKSx,
+-- ver backend/db/README.md). Si este seed se usa con OTRO User Pool, hay que
+-- crear los usuarios ahí primero (AWS CLI: admin-create-user +
+-- admin-set-user-password + admin-add-user-to-group) y reemplazar estos
+-- valores por los "sub" reales que devuelva Cognito.
 
-INSERT INTO app.usuarios (email, password_hash, rol, id_profesional) VALUES
-  ('admin@responsabilidades.local', crypt(:'seed_admin_password', gen_salt('bf')), 'app_admin', NULL),
-  ('laura.gomez@example.com', crypt(:'seed_profesional_password', gen_salt('bf')), 'app_profesional',
+INSERT INTO app.usuarios (sub, email, rol, id_profesional) VALUES
+  ('c4485468-d0b1-708a-4c18-d0b3a84e6e44', 'admin@responsabilidades.local', 'app_admin', NULL),
+  ('741834e8-d0d1-704f-f017-fc5c08d69f1c', 'laura.gomez@example.com', 'app_profesional',
     (SELECT id_profesional FROM app.profesionales WHERE nombre = 'Laura Gómez')),
-  ('andres.ruiz@example.com', crypt(:'seed_profesional_password', gen_salt('bf')), 'app_profesional',
+  ('e4782458-0091-7029-2f53-85704c1379cd', 'andres.ruiz@example.com', 'app_profesional',
     (SELECT id_profesional FROM app.profesionales WHERE nombre = 'Andrés Ruiz'));

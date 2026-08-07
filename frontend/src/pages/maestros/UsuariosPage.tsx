@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useApiGet } from "../../api/hooks";
-import { apiPatch, apiRpc, ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
+import { cambiarActivoUsuario, crearUsuario } from "../../api/usuariosAdmin";
 import Modal from "../../components/Modal";
 import type { Profesional, Rol, Usuario } from "../../api/types";
 
@@ -14,7 +15,7 @@ export default function UsuariosPage() {
   async function alternarActivo(u: Usuario) {
     setError(null);
     try {
-      await apiPatch("usuarios", { id_usuario: `eq.${u.id_usuario}` }, { activo: !u.activo });
+      await cambiarActivoUsuario(u.sub, u.email, !u.activo);
       usuarios.recargar();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo actualizar el usuario");
@@ -32,8 +33,8 @@ export default function UsuariosPage() {
         <div>
           <h1>Usuarios</h1>
           <p className="page-subtitle">
-            Cuentas de acceso al sistema (login local, ver nota de Cognito en el backend). Un profesional necesita un
-            usuario aquí, enlazado a su registro en Profesionales, para poder iniciar sesión.
+            Cuentas de acceso al sistema (AWS Cognito). Un profesional necesita un usuario aquí, enlazado a su
+            registro en Profesionales, para poder iniciar sesión.
           </p>
         </div>
         <button onClick={() => setModalAbierto(true)}>+ Nuevo usuario</button>
@@ -116,7 +117,7 @@ function NuevoUsuarioModal({
     setError(null);
     setGuardando(true);
     try {
-      await apiRpc("crear_usuario", {
+      await crearUsuario({
         email,
         password,
         rol,

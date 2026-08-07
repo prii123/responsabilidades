@@ -169,7 +169,7 @@ responsabilidades/
 │           └── sql/
 │               ├── 01_roles.sql        # authenticator, web_anon, app_profesional, app_admin, app_maintenance
 │               ├── 02_schema.sql       # maestros + calendario tributario + movimiento + usuarios
-│               ├── 03_auth.sql         # login local con JWT (placeholder de Cognito)
+│               ├── 03_auth.sql         # autenticación vía AWS Cognito (JWKS + sub→id_profesional)
 │               ├── 04_functions.sql    # RPC: asignar_cliente, generar_eventos, registrar_evidencia, marcar_vencidos
 │               ├── 05_triggers.sql     # reglas 1–7 (validaciones y máquina de estados)
 │               ├── 06_api.sql          # esquema api: vistas + RPC + grants por rol
@@ -182,7 +182,7 @@ responsabilidades/
     ├── index.html
     └── src/
         ├── main.tsx / App.tsx
-        ├── auth/                   # AuthContext.tsx (login local, ver nota Cognito) + LoginPage.tsx
+        ├── auth/                   # AuthContext.tsx (login SRP contra Cognito) + LoginPage.tsx
         ├── api/                    # client.ts (fetch + token), hooks.ts, types.ts
         ├── components/             # Layout.tsx, EstadoBadge.tsx, RequireRole.tsx
         └── pages/
@@ -197,21 +197,17 @@ responsabilidades/
 
 ## 3. Plan de trabajo paso a paso
 
-> **Estado (2026-08-03/04):** Fases 0–7 ejecutadas y verificadas de punta a punta
-> (`docker compose up`, seed cargado, pruebas por curl y por la UI real en el
-> navegador). **AWS Cognito quedó explícitamente fuera de esta ejecución** por
-> instrucción del usuario: se reemplazó por un login local con JWT firmado en
-> la propia base de datos (`api.login`, ver `backend/db/init/sql/03_auth.sql`),
-> que cumple el mismo contrato (`role`, `id_profesional` en el JWT) para que
-> la migración futura sea solo cambiar la validación del token, no el resto
-> del sistema. Fase 8 (despliegue en un servidor real) queda pendiente: solo
-> se validó en local con Docker Desktop.
+> **Estado (2026-08-07):** Fases 0–8 ejecutadas y verificadas de punta a punta,
+> **incluyendo AWS Cognito** (User Pool `us-east-1_6wQOXsKSx`, ver sección 3.1
+> más abajo): el login local con JWT firmado en la propia base de datos que se
+> usó como placeholder mientras tanto quedó completamente reemplazado —
+> `app.usuarios.password_hash` y `api.login` ya no existen.
 
 ### Fase 0 — Preparación del entorno
 - [x] 0.1 Instalar/verificar Docker Desktop (para PostgreSQL + PostgREST locales).
 - [x] 0.2 Crear las carpetas `backend/` y `frontend/` con la estructura anterior.
-- [ ] ~~0.3 Crear el User Pool en AWS Cognito…~~ **Diferido a petición del usuario.** Sustituido por login local (`app.usuarios` + `api.login`, JWT HS256 firmado con `pgcrypto`). Ver guía de migración en [`backend/db/README.md`](backend/db/README.md#migrar-el-login-local-a-aws-cognito).
-- [ ] ~~0.4 Anotar region/userPoolId/clientId/JWKS…~~ **Diferido junto con 0.3.**
+- [x] 0.3 Crear el User Pool en AWS Cognito (`responsabilidades-users`, grupos `app_admin`/`app_profesional` — mismos nombres que los roles de Postgres, sin Lambda intermedia), atributo `custom:id_profesional`, app client público con SRP.
+- [x] 0.4 region=`us-east-1`, userPoolId=`us-east-1_6wQOXsKSx`, clientId=`663fnfh90ivorsrtvf37i6s6hd`. JWKS descargado a `backend/jwks.json` (PostgREST no soporta URL en vivo, ver nota en `backend/postgrest.conf`).
 
 ### Fase 1 — Base de datos: esquema (backend)
 - [x] 1.1 `01_roles.sql`: roles `authenticator`, `web_anon`, `app_profesional`, `app_admin` **+ `app_maintenance`** (rol de conexión directa para el job que marca vencidos, ver 2.1).
@@ -279,8 +275,8 @@ responsabilidades/
 - [x] 8.1 **Backend desplegado en AWS real** (2026-08-05): instancia Lightsail (Ubuntu 22.04, 1GB RAM, `micro_3_0`), IP estática, Docker con `db` + `api` + `scheduler` (se omitió `swagger` para no gastar memoria). Guía completa y reproducible en [`DEPLOY_AWS.md`](DEPLOY_AWS.md). El cron de `marcar_vencidos()` ya no es un pendiente: lo resuelve el contenedor `scheduler` de la Fase 3, portable a cualquier servidor.
 - [x] 8.2 **Frontend desplegado en la misma instancia** con Docker/nginx (`frontend/Dockerfile` + `frontend/nginx.conf`, multi-stage build), no en S3+CloudFront como se planteó originalmente — se decidió así en la ejecución para reusar la infraestructura Docker ya pagada y evitar un bucket S3 público. `VITE_API_URL` apunta al backend en build-time.
 - [ ] 8.3 Backups de PostgreSQL — pendiente de configurar un cron de `pg_dump` en el servidor real.
-- [ ] 8.4 **HTTPS vía CloudFront — bloqueado temporalmente**: la cuenta de AWS usada requiere verificación de AWS Support antes de poder crear distribuciones CloudFront. El despliegue actual funciona pero está en HTTP plano (incluida la contraseña del login). Configuración de las dos distribuciones (backend proxy + frontend) ya documentada y lista en `DEPLOY_AWS.md` (Paso 6) para aplicar en cuanto la cuenta esté verificada.
-- [ ] 8.5 Cuando exista el User Pool de Cognito: seguir la guía de migración en [`backend/db/README.md`](backend/db/README.md#migrar-el-login-local-a-aws-cognito).
+- [ ] 8.4 **HTTPS vía CloudFront — bloqueado temporalmente**: la cuenta de AWS usada requiere verificación de AWS Support antes de poder crear distribuciones CloudFront. El despliegue actual funciona pero está en HTTP plano (el login en sí no manda la contraseña en claro — Cognito usa SRP — pero el resto del tráfico, tokens incluidos, sí viaja sin cifrar). Configuración de las dos distribuciones (backend proxy + frontend) ya documentada y lista en `DEPLOY_AWS.md` (Paso 6) para aplicar en cuanto la cuenta esté verificada.
+- [x] 8.5 **AWS Cognito en producción (2026-08-07)**: User Pool `us-east-1_6wQOXsKSx`, grupos `app_admin`/`app_profesional`, los 4 usuarios existentes migrados con su `sub`. PostgREST valida JWKS + mapea rol directo. `presign-service` se extendió con rutas `/usuarios` (crear/activar/desactivar) usando la API de administración de Cognito — ver `presign-service/src/index.js` y `backend/db/README.md`.
 
 **Seguridad de la cuenta AWS:** se creó un usuario IAM dedicado (`responsabilidades-admin`, política `AdministratorAccess`) y todo el despliegue se hizo con ese usuario — la cuenta root no se usó para crear ningún recurso.
 

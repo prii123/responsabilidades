@@ -10,9 +10,7 @@ services:
       # Variables leídas por db/init/00_bootstrap.sh (no son variables nativas de postgres)
       AUTHENTICATOR_PASSWORD: ${AUTHENTICATOR_PASSWORD:?falta AUTHENTICATOR_PASSWORD en .env}
       MAINTENANCE_PASSWORD: ${MAINTENANCE_PASSWORD:?falta MAINTENANCE_PASSWORD en .env}
-      APP_JWT_SECRET: ${APP_JWT_SECRET:?falta APP_JWT_SECRET en .env}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin12345}
-      SEED_PROFESIONAL_PASSWORD: ${SEED_PROFESIONAL_PASSWORD:-profesional12345}
+      USER_SYNC_PASSWORD: ${USER_SYNC_PASSWORD:?falta USER_SYNC_PASSWORD en .env}
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -40,12 +38,21 @@ services:
       PGRST_DB_SCHEMAS: api
       PGRST_DB_ANON_ROLE: web_anon
       PGRST_DB_USE_LEGACY_GUCS: "true"
-      PGRST_JWT_SECRET: ${APP_JWT_SECRET}
+      # PostgREST no soporta URL de JWKS en vivo: se le pasa el contenido ya
+      # descargado (backend/jwks.json, ver "Rotar las llaves de Cognito" en
+      # backend/db/README.md). "cognito:groups"[0] se usa directo como rol de
+      # Postgres, por eso los grupos del User Pool deben llamarse igual que
+      # los roles (app_admin / app_profesional).
+      PGRST_JWT_SECRET: "@/etc/postgrest/jwks.json"
       PGRST_JWT_SECRET_IS_BASE64: "false"
+      PGRST_JWT_ROLE_CLAIM_KEY: '."cognito:groups"[0]'
+      PGRST_JWT_AUD: ${COGNITO_CLIENT_ID:?falta COGNITO_CLIENT_ID en .env}
       PGRST_DB_MAX_ROWS: "1000"
       PGRST_SERVER_PORT: "3000"
       PGRST_SERVER_HOST: "*"
       PGRST_LOG_LEVEL: "info"
+    volumes:
+      - ./jwks.json:/etc/postgrest/jwks.json:ro
     ports:
       - "${POSTGREST_PORT:-3000}:3000"
 

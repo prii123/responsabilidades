@@ -1,76 +1,52 @@
 -- ============================================================
--- Autenticación LOCAL — placeholder temporal de AWS Cognito
+-- Autenticación — AWS Cognito
 -- ============================================================
--- Mientras no exista el User Pool de Cognito, el login se resuelve aquí mismo:
--- api.login(email, password) valida contra app.usuarios (password con pgcrypto)
--- y firma un JWT HS256 con los claims que espera PostgREST ("role") y RLS
--- ("id_profesional"). El frontend solo necesita POST /rpc/login.
+-- PostgREST valida el ID token de Cognito (RS256) contra el JWKS del User
+-- Pool (ver ../postgrest.conf / docker-compose.yml, PGRST_JWT_SECRET) y hace
+-- SET ROLE directo al grupo de Cognito del usuario ("cognito:groups"[0], vía
+-- PGRST_JWT_ROLE_CLAIM_KEY) — los grupos se llaman igual que los roles de
+-- Postgres (app_admin / app_profesional), así que no hace falta ninguna
+-- función ni Lambda intermedia para resolver el rol.
 --
--- MIGRACIÓN A COGNITO (cuando esté disponible):
---   1) Backend: en postgrest.conf, cambiar "jwt-secret" al JWKS de Cognito (RS256).
---   2) Backend: mapear el grupo de Cognito ("cognito:groups") a los mismos roles
---      app_admin / app_profesional (vía jwt-role-claim-key), y el claim "sub"/
---      "email" a app.usuarios.id_profesional para que RLS siga funcionando igual.
---   3) Frontend: reemplazar src/auth/AuthContext.tsx (login local) por el flujo
---      Authorization Code + PKCE contra el Hosted UI de Cognito.
---   4) El resto del sistema (esquema, RPC, RLS, frontend salvo el login) NO cambia.
+-- Lo único que sigue viviendo en la base de datos es la relación
+-- sub (Cognito) -> id_profesional, para que las políticas RLS de 07_rls.sql
+-- sigan funcionando igual que con el login local. Esa tabla (app.usuarios)
+-- la mantiene presign-service (rutas /usuarios) a través del rol
+-- app_user_sync, que se conecta directo a Postgres (no vía PostgREST, igual
+-- que el "scheduler" con app_maintenance).
 
-SELECT format('ALTER DATABASE %I SET app.jwt_secret = %L', current_database(), :'jwt_secret')
-\gexec
-
--- Codificación base64url sin padding (para construir el JWT a mano).
-CREATE OR REPLACE FUNCTION app.url_encode(data bytea) RETURNS text AS $$
-  SELECT translate(encode(data, 'base64'), E'+/=\n', '-_');
-$$ LANGUAGE sql IMMUTABLE;
-
--- Firma un JWT HS256 con pgcrypto (hmac), sin depender de la extensión pgjwt.
-CREATE OR REPLACE FUNCTION app.jwt_sign(payload json) RETURNS text AS $$
-DECLARE
-  header    text := app.url_encode(convert_to('{"alg":"HS256","typ":"JWT"}', 'utf8'));
-  body      text := app.url_encode(convert_to(payload::text, 'utf8'));
-  signature text := app.url_encode(hmac(header || '.' || body, current_setting('app.jwt_secret'), 'sha256'));
-BEGIN
-  RETURN header || '.' || body || '.' || signature;
-END;
-$$ LANGUAGE plpgsql STABLE;
-
--- Helpers para leer los claims del JWT actual (usados por RLS y por las RPC).
+-- SECURITY DEFINER porque app_profesional no tiene (ni debe tener) SELECT
+-- directo sobre app.usuarios — solo necesita este único valor derivado.
 CREATE OR REPLACE FUNCTION app.current_profesional_id() RETURNS int AS $$
-  SELECT NULLIF(current_setting('request.jwt.claims', true)::json ->> 'id_profesional', '')::int;
-$$ LANGUAGE sql STABLE;
+  SELECT id_profesional FROM app.usuarios
+  WHERE sub = current_setting('request.jwt.claims', true)::json ->> 'sub'
+    AND activo;
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
+-- Ya no hace falta para RLS (el rol de Postgres ya lo fija PostgREST vía
+-- jwt-role-claim-key); se deja como helper de diagnóstico.
 CREATE OR REPLACE FUNCTION app.current_rol() RETURNS text AS $$
-  SELECT current_setting('request.jwt.claims', true)::json ->> 'role';
+  SELECT current_setting('request.jwt.claims', true)::json -> 'cognito:groups' ->> 0;
 $$ LANGUAGE sql STABLE;
 
--- Única función que puede ejecutar web_anon. SECURITY DEFINER porque web_anon
--- no tiene (ni debe tener) SELECT directo sobre app.usuarios.
-CREATE OR REPLACE FUNCTION api.login(email text, password text) RETURNS json AS $$
-DECLARE
-  v_usuario app.usuarios;
-  v_token   text;
-BEGIN
-  SELECT u.* INTO v_usuario FROM app.usuarios u WHERE u.email = login.email AND u.activo;
+-- Usados exclusivamente por presign-service (rol app_user_sync) al
+-- crear/activar/desactivar usuarios en Cognito, para reflejar lo mismo aquí.
+CREATE OR REPLACE FUNCTION app.f_sync_usuario_cognito(
+  p_sub text, p_email text, p_rol text, p_id_profesional int
+) RETURNS app.usuarios AS $$
+  INSERT INTO app.usuarios (sub, email, rol, id_profesional, activo)
+  VALUES (p_sub, p_email, p_rol, p_id_profesional, true)
+  ON CONFLICT (sub) DO UPDATE
+    SET email = EXCLUDED.email, rol = EXCLUDED.rol, id_profesional = EXCLUDED.id_profesional
+  RETURNING *;
+$$ LANGUAGE sql;
 
-  IF v_usuario IS NULL OR v_usuario.password_hash <> crypt(login.password, v_usuario.password_hash) THEN
-    RAISE EXCEPTION 'Credenciales inválidas' USING ERRCODE = '28P01';
-  END IF;
+CREATE OR REPLACE FUNCTION app.f_set_usuario_activo(p_sub text, p_activo boolean) RETURNS void AS $$
+  UPDATE app.usuarios SET activo = p_activo WHERE sub = p_sub;
+$$ LANGUAGE sql;
 
-  v_token := app.jwt_sign(json_build_object(
-    'role', v_usuario.rol,
-    'email', v_usuario.email,
-    'id_usuario', v_usuario.id_usuario,
-    'id_profesional', v_usuario.id_profesional,
-    'exp', extract(epoch FROM now() + interval '8 hours')::int
-  ));
-
-  RETURN json_build_object(
-    'token', v_token,
-    'rol', v_usuario.rol,
-    'email', v_usuario.email,
-    'id_profesional', v_usuario.id_profesional
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-GRANT EXECUTE ON FUNCTION api.login(text, text) TO web_anon;
+GRANT USAGE ON SCHEMA app TO app_user_sync;
+GRANT SELECT, INSERT, UPDATE ON app.usuarios TO app_user_sync;
+GRANT USAGE, SELECT ON app.usuarios_id_usuario_seq TO app_user_sync;
+GRANT EXECUTE ON FUNCTION app.f_sync_usuario_cognito(text, text, text, int) TO app_user_sync;
+GRANT EXECUTE ON FUNCTION app.f_set_usuario_activo(text, boolean) TO app_user_sync;

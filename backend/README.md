@@ -5,16 +5,15 @@ aplicación intermedio: la lógica de negocio (las 7 reglas, la generación de
 eventos, los calendarios tributarios) vive en PostgreSQL; PostgREST solo la
 expone como HTTP.
 
-> **AWS Cognito:** todavía no está configurado. Mientras tanto, la
-> autenticación se resuelve con un login local (usuarios + JWT firmados en la
-> propia base de datos) que cumple exactamente el mismo contrato que tendrá
-> Cognito (`role` para el rol de BD, `id_profesional` para RLS). Ver
-> [`db/README.md`](db/README.md#migrar-el-login-local-a-aws-cognito) para el
-> paso a paso de la migración cuando el User Pool exista.
+> **AWS Cognito:** la autenticación es 100% Cognito (no hay login local). Ver
+> [`db/README.md`](db/README.md#autenticación-aws-cognito) para el detalle de
+> cómo PostgREST valida el JWT y cómo se relaciona `sub` con `id_profesional`.
 
 ## Requisitos
 
 - Docker y Docker Compose.
+- Un User Pool de Cognito ya creado (ver `db/README.md`), con al menos un
+  usuario en el grupo `app_admin`.
 
 ## Puesta en marcha
 
@@ -22,12 +21,14 @@ expone como HTTP.
 cp .env.example .env
 ```
 
-Edita `.env` y define contraseñas/secretos reales (`POSTGRES_SUPERUSER_PASSWORD`,
-`AUTHENTICATOR_PASSWORD`, `MAINTENANCE_PASSWORD`, `APP_JWT_SECRET`). Para
-generar un secreto JWT fuerte:
+Edita `.env` y define contraseñas/secretos reales
+(`POSTGRES_SUPERUSER_PASSWORD`, `AUTHENTICATOR_PASSWORD`,
+`MAINTENANCE_PASSWORD`, `USER_SYNC_PASSWORD`) y los datos de tu User Pool
+(`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_REGION`). Descarga el
+JWKS del User Pool a `jwks.json` (PostgREST no lo hace solo):
 
 ```bash
-openssl rand -base64 48
+curl -s https://cognito-idp.<region>.amazonaws.com/<userPoolId>/.well-known/jwks.json -o jwks.json
 ```
 
 Levanta todo:
@@ -47,17 +48,9 @@ Esto arranca:
 
 ## Probar que funciona
 
-Login con uno de los usuarios del seed (contraseña definida en
-`SEED_ADMIN_PASSWORD` / `SEED_PROFESIONAL_PASSWORD` del `.env`, por defecto
-`admin12345` / `profesional12345`):
-
-```bash
-curl -s -X POST http://localhost:3000/rpc/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@responsabilidades.local","password":"admin12345"}'
-```
-
-Devuelve `{"token": "...", "rol": "app_admin", ...}`. Con ese token:
+No hay un endpoint de login propio — el token lo emite Cognito directamente
+(SRP, por ejemplo con `amazon-cognito-identity-js` desde un script, o
+simplemente iniciando sesión en el frontend). Con un ID token de Cognito:
 
 ```bash
 TOKEN="pega-aqui-el-token"

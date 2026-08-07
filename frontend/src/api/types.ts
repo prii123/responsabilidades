@@ -176,15 +176,9 @@ export interface DashboardResumen {
 
 export interface Usuario {
   id_usuario: number;
+  sub: string;
   email: string;
   rol: Rol;
   id_profesional: number | null;
   activo: boolean;
-}
-
-export interface LoginResponse {
-  token: string;
-  rol: Rol;
-  email: string;
-  id_profesional: number | null;
 }

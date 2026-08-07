@@ -6,3 +6,11 @@ services:
     env_file: .env
     ports:
       - "${PORT:-3001}:3001"
+
+# Necesita llegar a "db" (rol app_user_sync) para mantener app.usuarios en
+# sincronía con Cognito — se une a la red que ya crea backend/docker-compose.yml
+# en vez de exponer Postgres más allá del host.
+networks:
+  default:
+    name: backend_default
+    external: true

@@ -12,9 +12,7 @@ run_sql() {
   psql -v ON_ERROR_STOP=1 \
        -v authenticator_password="${AUTHENTICATOR_PASSWORD:?falta AUTHENTICATOR_PASSWORD}" \
        -v maintenance_password="${MAINTENANCE_PASSWORD:?falta MAINTENANCE_PASSWORD}" \
-       -v jwt_secret="${APP_JWT_SECRET:?falta APP_JWT_SECRET}" \
-       -v seed_admin_password="${SEED_ADMIN_PASSWORD:-admin12345}" \
-       -v seed_profesional_password="${SEED_PROFESIONAL_PASSWORD:-profesional12345}" \
+       -v user_sync_password="${USER_SYNC_PASSWORD:?falta USER_SYNC_PASSWORD}" \
        --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
        -f "$SQL_DIR/$1"
 }

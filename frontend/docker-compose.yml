@@ -5,6 +5,8 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:?falta VITE_API_URL en .env — URL pública del backend}
         VITE_PRESIGN_URL: ${VITE_PRESIGN_URL:?falta VITE_PRESIGN_URL en .env — URL pública de presign-service}
+        VITE_COGNITO_USER_POOL_ID: ${VITE_COGNITO_USER_POOL_ID:?falta VITE_COGNITO_USER_POOL_ID en .env}
+        VITE_COGNITO_CLIENT_ID: ${VITE_COGNITO_CLIENT_ID:?falta VITE_COGNITO_CLIENT_ID en .env}
     container_name: responsabilidades_frontend
     restart: unless-stopped
     ports:

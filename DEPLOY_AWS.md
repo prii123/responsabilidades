@@ -116,12 +116,22 @@ POSTGRES_SUPERUSER_PASSWORD=<genera con: openssl rand -base64 24>
 POSTGRES_PORT=5432
 AUTHENTICATOR_PASSWORD=<genera con: openssl rand -base64 24>
 MAINTENANCE_PASSWORD=<genera con: openssl rand -base64 24>
-APP_JWT_SECRET=<genera con: openssl rand -base64 48>
+USER_SYNC_PASSWORD=<genera con: openssl rand -base64 24>
+COGNITO_USER_POOL_ID=<userPoolId de tu User Pool de Cognito>
+COGNITO_CLIENT_ID=<clientId del app client>
+COGNITO_REGION=us-east-1
 POSTGREST_PORT=3000
 SWAGGER_PORT=8080
-SEED_ADMIN_PASSWORD=<elige una contraseña fuerte para el admin>
-SEED_PROFESIONAL_PASSWORD=<elige una contraseña fuerte>
 EOF
+```
+
+Antes de levantar los contenedores, descarga el JWKS del User Pool (PostgREST
+no lo hace solo, ver `backend/db/README.md#autenticación-aws-cognito`) y
+asegúrate de tener al menos un usuario admin creado en Cognito (ver esa misma
+sección para el bootstrap del primer usuario):
+
+```bash
+curl -s https://cognito-idp.<region>.amazonaws.com/<userPoolId>/.well-known/jwks.json -o jwks.json
 ```
 
 Levanta los contenedores (se omite `swagger` a propósito para no gastar
@@ -132,15 +142,12 @@ sudo docker compose up -d db api scheduler
 ```
 
 La primera vez tarda unos minutos (descarga imágenes + corre el seed).
-Verifica:
+Verifica con un ID token real de Cognito (obtenido por SRP, no hay endpoint
+de login propio):
 
 ```bash
-curl -X POST http://localhost:3000/rpc/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@responsabilidades.local","password":"<tu SEED_ADMIN_PASSWORD>"}'
+curl http://localhost:3000/clientes -H "Authorization: Bearer <ID token de Cognito>"
 ```
-
-Debe devolver un JSON con `"token"`.
 
 ## Paso 4 — Desplegar el frontend
 
@@ -170,16 +177,18 @@ Prueba en el navegador: `http://<IP>/` — deberías ver la pantalla de login.
 
 ## Paso 5 — Probar de punta a punta
 
-1. Entra con `admin@responsabilidades.local` y la contraseña que definiste en
-   `SEED_ADMIN_PASSWORD`.
+1. Entra con el usuario admin que creaste en Cognito (ver
+   `backend/db/README.md#autenticación-aws-cognito` para el bootstrap del
+   primero).
 2. Deberías ver el dashboard con datos del seed de ejemplo (Empresa ABC
    S.A.S., Comercial XYZ Ltda.).
-3. Prueba también con `laura.gomez@example.com` / `SEED_PROFESIONAL_PASSWORD`
-   para confirmar el rol de profesional.
+3. Prueba también con un usuario del grupo `app_profesional` para confirmar
+   ese rol.
 
-En este punto el sistema **funciona pero todo va por HTTP sin cifrar**,
-incluida la contraseña del login. Es aceptable para probar, no para uso real
-con datos de clientes reales — sigue con el paso 6.
+En este punto el sistema **funciona pero todo va por HTTP sin cifrar**. El
+login en sí no manda la contraseña en claro (Cognito usa SRP), pero el resto
+del tráfico —incluidos los tokens— sí viaja sin cifrar. Es aceptable para
+probar, no para uso real con datos de clientes reales — sigue con el paso 6.
 
 ## Paso 6 — Agregar HTTPS con CloudFront (recomendado antes de uso real)
 
@@ -251,20 +260,29 @@ negocio.
    el contenido de [`deploy/s3-cors.json`](deploy/s3-cors.json) (ajusta los
    orígenes a tu IP/dominio real).
 
-### 6.5.2 — Usuario IAM con permisos mínimos (solo ese bucket)
+### 6.5.2 — Dos usuarios IAM con permisos mínimos
 
 **No reutilices** el usuario admin del Paso 1 para esto — `presign-service`
-solo necesita `PutObject`/`GetObject` sobre el bucket de evidencias.
+necesita dos identidades separadas, cada una acotada a lo suyo:
 
-1. **IAM** → **Users** → **Create user**: `responsabilidades-s3-presign`,
-   sin acceso a consola.
-2. **Add permissions** → **Create inline policy** → pestaña JSON → pega
+1. `responsabilidades-s3-presign` (solo `PutObject`/`GetObject` sobre el
+   bucket de evidencias): **IAM** → **Users** → **Create user**, sin acceso a
+   consola → **Add permissions** → **Create inline policy** → JSON → pega
    [`deploy/s3-presign-iam-policy.json`](deploy/s3-presign-iam-policy.json)
-   (reemplaza el nombre del bucket).
-3. **Security credentials** → **Create access key** → caso de uso
-   "Application running outside AWS" → guarda las claves.
+   (reemplaza el nombre del bucket) → **Security credentials** → **Create
+   access key** ("Application running outside AWS").
+2. `responsabilidades-cognito-admin` (solo `Admin*` sobre el User Pool, para
+   que el panel de administración pueda crear/activar/desactivar usuarios):
+   mismo procedimiento, con
+   [`deploy/cognito-admin-iam-policy.json`](deploy/cognito-admin-iam-policy.json)
+   (reemplaza el ARN del User Pool).
 
 ### 6.5.3 — Desplegar `presign-service`
+
+Necesita llegar a Postgres con el rol `app_user_sync` (ver
+`backend/db/README.md#autenticación-aws-cognito`) — en Docker se une a la red
+`backend_default` que ya crea `backend/docker-compose.yml` (mismo host, así
+que el `backend/` de este mismo servidor ya debe estar levantado antes).
 
 ```bash
 scp -i tu-llave.pem -r presign-service ubuntu@<IP>:~/presign-service
@@ -272,11 +290,23 @@ ssh -i tu-llave.pem ubuntu@<IP>
 cd ~/presign-service
 cat > .env <<EOF
 PORT=3001
-APP_JWT_SECRET=<el MISMO valor que backend/.env — así valida los mismos JWT>
-AWS_ACCESS_KEY_ID=<access key del usuario responsabilidades-s3-presign>
-AWS_SECRET_ACCESS_KEY=<secret key de ese usuario>
+
+COGNITO_USER_POOL_ID=<el mismo userPoolId de backend/.env>
+COGNITO_CLIENT_ID=<el mismo clientId de backend/.env>
+COGNITO_REGION=us-east-1
+COGNITO_ACCESS_KEY_ID=<access key de responsabilidades-cognito-admin>
+COGNITO_SECRET_ACCESS_KEY=<secret key de responsabilidades-cognito-admin>
+
+S3_ACCESS_KEY_ID=<access key de responsabilidades-s3-presign>
+S3_SECRET_ACCESS_KEY=<secret key de responsabilidades-s3-presign>
 AWS_REGION=us-east-1
 S3_BUCKET=<tu bucket de evidencias>
+
+DB_HOST=db
+DB_PORT=5432
+DB_NAME=responsabilidades
+USER_SYNC_PASSWORD=<el mismo valor que USER_SYNC_PASSWORD en backend/.env>
+
 ALLOWED_ORIGINS=http://<IP>
 EOF
 sudo docker compose up -d --build
@@ -333,15 +363,12 @@ vacíalo primero (**S3** → bucket → **Empty**) y luego **Delete bucket**. Lo
 usuarios IAM creados (`responsabilidades-admin`, `responsabilidades-s3-presign`)
 se eliminan desde **IAM → Users** — primero desactiva/borra sus access keys.
 
-## Paso 10 — Cuando exista AWS Cognito
+## Paso 10 — Autenticación (AWS Cognito)
 
-Este despliegue usa el login local (JWT firmado en la propia base de datos,
-ver `backend/db/init/sql/03_auth.sql`) como reemplazo temporal de Cognito. La
-guía de migración completa está en
-[`backend/db/README.md`](backend/db/README.md#migrar-el-login-local-a-aws-cognito).
-En resumen: se cambia la validación del JWT en PostgREST (de secreto
-simétrico a JWKS de Cognito) y se reemplaza `frontend/src/auth/AuthContext.tsx`
-por el flujo PKCE del Hosted UI — el resto del sistema no cambia.
+Este despliegue ya usa AWS Cognito para el login (no login local ni Hosted
+UI/PKCE — el frontend usa el SDK directo con SRP, ver la nota en
+`frontend/src/auth/AuthContext.tsx` sobre por qué no Hosted UI mientras el
+sitio esté en HTTP plano). Guía completa: `backend/db/README.md#autenticación-aws-cognito`.
 
 ---
 
