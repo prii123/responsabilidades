@@ -8,3 +8,5 @@ Usuario	Email	Contraseña
 Admin	admin@responsabilidades.local	Adm-3538367c
 Profesional	laura.gomez@example.com	Prof-cc56afbd
 Profesional	andres.ruiz@example.com	Prof-cc56afbd
+
+printsvallejos@gmail.com  Prof-8f2Ka91x
