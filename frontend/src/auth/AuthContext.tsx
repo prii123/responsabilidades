@@ -7,7 +7,7 @@
 // AuthContext para que api/client.ts y el resto de la app sigan iguales.
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { apiRpc, setAuthToken } from "../api/client";
+import { apiRpc, setAuthToken, setUnauthorizedHandler } from "../api/client";
 import type { LoginResponse, Rol } from "../api/types";
 
 interface Sesion {
@@ -21,6 +21,7 @@ interface AuthContextValue {
   sesion: Sesion | null;
   cargando: boolean;
   error: string | null;
+  sesionExpirada: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sesion, setSesion] = useState<Sesion | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sesionExpirada, setSesionExpirada] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -41,6 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSesion(parsed);
       setAuthToken(parsed.token);
     }
+  }, []);
+
+  // Si el token expira (PostgREST responde 401), cerramos sesión solos en vez
+  // de dejar que cada página muestre tablas vacías sin explicación.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setSesion((actual) => (actual ? null : actual));
+      setAuthToken(null);
+      localStorage.removeItem(STORAGE_KEY);
+      setSesionExpirada(true);
+    });
+    return () => setUnauthorizedHandler(null);
   }, []);
 
   async function login(email: string, password: string) {
@@ -57,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSesion(nueva);
       setAuthToken(nueva.token);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nueva));
+      setSesionExpirada(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo iniciar sesión");
       throw e;
@@ -69,9 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSesion(null);
     setAuthToken(null);
     localStorage.removeItem(STORAGE_KEY);
+    setSesionExpirada(false);
   }
 
-  const value = useMemo(() => ({ sesion, cargando, error, login, logout }), [sesion, cargando, error]);
+  const value = useMemo(
+    () => ({ sesion, cargando, error, sesionExpirada, login, logout }),
+    [sesion, cargando, error, sesionExpirada]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

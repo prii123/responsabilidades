@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { useApiGet } from "../../api/hooks";
+import { useApiGet, usePaginatedApiGet } from "../../api/hooks";
 import { apiPost, ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
 import type { Municipio, Responsabilidad, SubgrupoResponsabilidad, Tipo, ModoVencimiento } from "../../api/types";
 
 const initialForm = {
@@ -15,9 +16,10 @@ const initialForm = {
   sancion: false,
   modo_vencimiento: "CALENDARIO_NIT" as ModoVencimiento,
 };
+const PAGE_SIZE = 20;
 
 export default function ResponsabilidadesPage() {
-  const responsabilidades = useApiGet<Responsabilidad[]>("responsabilidades", { order: "nombre" });
+  const responsabilidades = usePaginatedApiGet<Responsabilidad>("responsabilidades", { order: "nombre" }, PAGE_SIZE);
   const subgrupos = useApiGet<SubgrupoResponsabilidad[]>("subgrupos_responsabilidad", { order: "nombre" });
   const municipios = useApiGet<Municipio[]>("municipios", { order: "nombre" });
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -36,38 +38,47 @@ export default function ResponsabilidadesPage() {
       </div>
 
       {responsabilidades.data && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Código único</th>
-              <th>Nombre</th>
-              <th>Tipo</th>
-              <th>Sanción</th>
-              <th>Vencimiento</th>
-            </tr>
-          </thead>
-          <tbody>
-            {responsabilidades.data.map((r) => (
-              <tr key={r.id_responsabilidad}>
-                <td>
-                  <code>{r.codigo_unico}</code>
-                </td>
-                <td>{r.nombre}</td>
-                <td>{r.tipo}</td>
-                <td>{r.sancion ? "⚠ Sí" : "No"}</td>
-                <td>{r.modo_vencimiento === "CALENDARIO_NIT" ? "Calendario por NIT" : "Fecha fija"}</td>
-              </tr>
-            ))}
-            {responsabilidades.data.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="empty-cell">
-                  Todavía no hay responsabilidades.
-                </td>
+                <th>Código único</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Sanción</th>
+                <th>Vencimiento</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {responsabilidades.data.map((r) => (
+                <tr key={r.id_responsabilidad}>
+                  <td>
+                    <code>{r.codigo_unico}</code>
+                  </td>
+                  <td>{r.nombre}</td>
+                  <td>{r.tipo}</td>
+                  <td>{r.sancion ? "⚠ Sí" : "No"}</td>
+                  <td>{r.modo_vencimiento === "CALENDARIO_NIT" ? "Calendario por NIT" : "Fecha fija"}</td>
+                </tr>
+              ))}
+              {responsabilidades.data.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="empty-cell">
+                    Todavía no hay responsabilidades.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
+      <Pagination
+        page={responsabilidades.page}
+        pageCount={responsabilidades.pageCount}
+        total={responsabilidades.total}
+        pageSize={responsabilidades.pageSize}
+        onChange={responsabilidades.setPage}
+      />
 
       {modalAbierto && (
         <NuevaResponsabilidadModal
@@ -180,7 +191,7 @@ function NuevaResponsabilidadModal({
         </label>
 
         {error && (
-          <p className="form-error" style={{ gridColumn: "span 2" }}>
+          <p className="form-error span-2">
             {error}
           </p>
         )}

@@ -43,39 +43,41 @@ export default function UsuariosPage() {
       {ok && <p className="form-ok">{ok}</p>}
 
       {usuarios.data && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Correo</th>
-              <th>Rol</th>
-              <th>Profesional</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {usuarios.data.map((u) => (
-              <tr key={u.id_usuario}>
-                <td>{u.email}</td>
-                <td>{u.rol === "app_admin" ? "Administrador" : "Profesional"}</td>
-                <td>{nombreProfesional(u.id_profesional)}</td>
-                <td>{u.activo ? "Activo" : "Inactivo"}</td>
-                <td>
-                  <button className="btn-secondary" onClick={() => alternarActivo(u)}>
-                    {u.activo ? "Desactivar" : "Reactivar"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {usuarios.data.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="empty-cell">
-                  Todavía no hay usuarios.
-                </td>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Profesional</th>
+                <th>Estado</th>
+                <th></th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {usuarios.data.map((u) => (
+                <tr key={u.id_usuario}>
+                  <td>{u.email}</td>
+                  <td>{u.rol === "app_admin" ? "Administrador" : "Profesional"}</td>
+                  <td>{nombreProfesional(u.id_profesional)}</td>
+                  <td>{u.activo ? "Activo" : "Inactivo"}</td>
+                  <td>
+                    <button className="btn-secondary" onClick={() => alternarActivo(u)}>
+                      {u.activo ? "Desactivar" : "Reactivar"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {usuarios.data.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="empty-cell">
+                    Todavía no hay usuarios.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modalAbierto && (

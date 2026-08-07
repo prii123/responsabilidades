@@ -28,6 +28,15 @@ export function getAuthToken(): string | null {
   return currentToken;
 }
 
+// AuthContext se suscribe aquí para cerrar sesión sola cuando el JWT expira
+// (PostgREST responde 401 "JWT expired") — sin esto, cada página tendría que
+// acordarse de mostrar el error y las tablas se ven vacías sin explicación.
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(fn: (() => void) | null) {
+  onUnauthorized = fn;
+}
+
 function headers(extra?: Record<string, string>): Record<string, string> {
   const h: Record<string, string> = {
     "Content-Type": "application/json",
@@ -41,6 +50,7 @@ async function handle<T>(res: Response): Promise<T> {
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
+    if (res.status === 401) onUnauthorized?.();
     throw new ApiError(res.status, data ?? {});
   }
   return data as T;
@@ -54,6 +64,28 @@ export async function apiGet<T>(path: string, query: Record<string, string> = {}
     headers: headers(),
   });
   return handle<T>(res);
+}
+
+/**
+ * GET paginado: usa limit/offset + "Prefer: count=exact" de PostgREST, que
+ * devuelve el total en el header Content-Range (ej. "0-19/145"). Páginas de
+ * 1 (no 0).
+ */
+export async function apiGetPaginated<T>(
+  path: string,
+  query: Record<string, string>,
+  page: number,
+  pageSize: number
+): Promise<{ data: T[]; total: number }> {
+  const offset = (page - 1) * pageSize;
+  const params = new URLSearchParams({ ...query, limit: String(pageSize), offset: String(offset) });
+  const res = await fetch(`${API_URL}/${path}?${params.toString()}`, {
+    headers: headers({ Prefer: "count=exact" }),
+  });
+  const data = await handle<T[]>(res);
+  const contentRange = res.headers.get("Content-Range");
+  const total = contentRange ? Number(contentRange.split("/")[1]) : data.length;
+  return { data, total: Number.isFinite(total) ? total : data.length };
 }
 
 export async function apiPost<T>(path: string, body: unknown, opts: { returnRepresentation?: boolean } = {}): Promise<T> {
@@ -83,6 +115,7 @@ export async function apiDelete(path: string, query: Record<string, string>): Pr
   });
   if (!res.ok) {
     const text = await res.text();
+    if (res.status === 401) onUnauthorized?.();
     throw new ApiError(res.status, text ? JSON.parse(text) : {});
   }
 }

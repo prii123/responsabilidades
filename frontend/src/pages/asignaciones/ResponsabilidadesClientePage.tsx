@@ -72,35 +72,37 @@ export default function ResponsabilidadesClientePage() {
       {error && <p className="form-error">{error}</p>}
 
       {idCliente && responsabilidades.data && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Responsabilidad</th>
-              <th>Tipo</th>
-              <th>Sanción</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {responsabilidades.data.map((r) => {
-              const actual = estadoDe(r.id_responsabilidad);
-              return (
-                <tr key={r.id_responsabilidad}>
-                  <td>{r.nombre}</td>
-                  <td>{r.tipo}</td>
-                  <td>{r.sancion ? "⚠ Sí" : "No"}</td>
-                  <td>{actual ? actual.estado : "No marcada"}</td>
-                  <td>
-                    <button className="btn-secondary" onClick={() => alternar(r)}>
-                      {!actual ? "Marcar" : actual.estado === "Activa" ? "Desactivar" : "Reactivar"}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Responsabilidad</th>
+                <th>Tipo</th>
+                <th>Sanción</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {responsabilidades.data.map((r) => {
+                const actual = estadoDe(r.id_responsabilidad);
+                return (
+                  <tr key={r.id_responsabilidad}>
+                    <td>{r.nombre}</td>
+                    <td>{r.tipo}</td>
+                    <td>{r.sancion ? "⚠ Sí" : "No"}</td>
+                    <td>{actual ? actual.estado : "No marcada"}</td>
+                    <td>
+                      <button className="btn-secondary" onClick={() => alternar(r)}>
+                        {!actual ? "Marcar" : actual.estado === "Activa" ? "Desactivar" : "Reactivar"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

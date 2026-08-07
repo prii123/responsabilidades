@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useAuth } from "./AuthContext";
 
 export default function LoginPage() {
-  const { login, cargando, error } = useAuth();
+  const { login, cargando, error, sesionExpirada } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -42,6 +42,7 @@ export default function LoginPage() {
           />
         </label>
 
+        {sesionExpirada && !error && <p className="form-error">Tu sesión expiró. Inicia sesión de nuevo.</p>}
         {error && <p className="form-error">{error}</p>}
 
         <button type="submit" disabled={cargando}>

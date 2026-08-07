@@ -1,23 +1,69 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useApiGet } from "../../api/hooks";
 import { apiRpc, ApiError } from "../../api/client";
 import { subirArchivoEvidencia } from "../../api/files";
 import type { EstadoEvento, VEvento } from "../../api/types";
 import EstadoBadge from "../../components/EstadoBadge";
+import CalendarioMes, { formatoFecha } from "../../components/CalendarioMes";
 import { useAuth } from "../../auth/AuthContext";
 
 const ESTADOS: EstadoEvento[] = ["Pendiente", "Vencido", "Realizado", "Realizado vencido", "Cancelado"];
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
 
 export default function EventosPage() {
   const { sesion } = useAuth();
-  const [anio, setAnio] = useState(String(new Date().getFullYear()));
+  const hoy = new Date();
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [mes, setMes] = useState(hoy.getMonth());
   const [estado, setEstado] = useState<string>("");
+  const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
   const [seleccionado, setSeleccionado] = useState<VEvento | null>(null);
 
-  const query: Record<string, string> = { order: "fecha_limite", anio: `eq.${anio}` };
+  const inicioMes = formatoFecha(new Date(anio, mes, 1));
+  const finMes = formatoFecha(new Date(anio, mes + 1, 0));
+
+  const query: Record<string, string> = {
+    order: "fecha_limite",
+    and: `(fecha_limite.gte.${inicioMes},fecha_limite.lte.${finMes})`,
+  };
   if (estado) query.estado_evento = `eq.${estado}`;
 
-  const eventos = useApiGet<VEvento[]>("v_eventos", query, [anio, estado]);
+  const eventos = useApiGet<VEvento[]>("v_eventos", query, [anio, mes, estado]);
+
+  function mesAnterior() {
+    setDiaSeleccionado(null);
+    if (mes === 0) {
+      setMes(11);
+      setAnio((a) => a - 1);
+    } else {
+      setMes((m) => m - 1);
+    }
+  }
+
+  function mesSiguiente() {
+    setDiaSeleccionado(null);
+    if (mes === 11) {
+      setMes(0);
+      setAnio((a) => a + 1);
+    } else {
+      setMes((m) => m + 1);
+    }
+  }
+
+  function irAHoy() {
+    setDiaSeleccionado(null);
+    setAnio(hoy.getFullYear());
+    setMes(hoy.getMonth());
+  }
+
+  const eventosMostrados = useMemo(() => {
+    if (!eventos.data) return [];
+    if (!diaSeleccionado) return eventos.data;
+    return eventos.data.filter((ev) => ev.fecha_limite === diaSeleccionado);
+  }, [eventos.data, diaSeleccionado]);
 
   return (
     <div className="page">
@@ -28,10 +74,18 @@ export default function EventosPage() {
       </p>
 
       <div className="inline-form">
-        <label>
-          Año
-          <input type="number" value={anio} onChange={(e) => setAnio(e.target.value)} style={{ width: 100 }} />
-        </label>
+        <button type="button" className="btn-secondary" onClick={mesAnterior}>
+          ← Mes anterior
+        </button>
+        <strong style={{ minWidth: 170, textAlign: "center" }}>
+          {MESES[mes]} {anio}
+        </strong>
+        <button type="button" className="btn-secondary" onClick={mesSiguiente}>
+          Mes siguiente →
+        </button>
+        <button type="button" className="btn-secondary" onClick={irAHoy}>
+          Hoy
+        </button>
         <label>
           Estado
           <select value={estado} onChange={(e) => setEstado(e.target.value)}>
@@ -49,50 +103,76 @@ export default function EventosPage() {
       {eventos.error && <p className="form-error">{eventos.error}</p>}
 
       {eventos.data && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Obligación</th>
-              <th>Periodo</th>
-              <th>Fecha límite</th>
-              <th>Profesional</th>
-              <th>Sanción</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {eventos.data.map((ev) => (
-              <tr key={ev.id_evento}>
-                <td>{ev.cliente_nombre}</td>
-                <td>{ev.responsabilidad_nombre}</td>
-                <td>{ev.periodo}</td>
-                <td>{ev.fecha_limite}</td>
-                <td>{ev.profesional_nombre}</td>
-                <td>{ev.sancion ? "⚠" : ""}</td>
-                <td>
-                  <EstadoBadge estado={ev.estado_evento} />
-                </td>
-                <td>
-                  {(ev.estado_evento === "Pendiente" || ev.estado_evento === "Vencido") && (
-                    <button className="btn-secondary" onClick={() => setSeleccionado(ev)}>
-                      Registrar evidencia
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {eventos.data.length === 0 && (
-              <tr>
-                <td colSpan={8} className="empty-cell">
-                  No hay eventos con estos filtros.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <CalendarioMes
+          anio={anio}
+          mes={mes}
+          eventos={eventos.data}
+          diaSeleccionado={diaSeleccionado}
+          onDiaClick={(fecha) => setDiaSeleccionado((actual) => (actual === fecha ? null : fecha))}
+        />
       )}
+
+      <section className="card">
+        <div className="section-header">
+          <h2>
+            Eventos de {MESES[mes]}
+            {diaSeleccionado ? ` — ${diaSeleccionado}` : ""}
+          </h2>
+          {diaSeleccionado && (
+            <button className="btn-secondary" onClick={() => setDiaSeleccionado(null)}>
+              Ver todo el mes
+            </button>
+          )}
+        </div>
+
+        {eventos.data && (
+          <div className="scroll-list">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Obligación</th>
+                  <th>Periodo</th>
+                  <th>Fecha límite</th>
+                  <th>Profesional</th>
+                  <th>Sanción</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventosMostrados.map((ev) => (
+                  <tr key={ev.id_evento}>
+                    <td>{ev.cliente_nombre}</td>
+                    <td>{ev.responsabilidad_nombre}</td>
+                    <td>{ev.periodo}</td>
+                    <td>{ev.fecha_limite}</td>
+                    <td>{ev.profesional_nombre}</td>
+                    <td>{ev.sancion ? "⚠" : ""}</td>
+                    <td>
+                      <EstadoBadge estado={ev.estado_evento} />
+                    </td>
+                    <td>
+                      {(ev.estado_evento === "Pendiente" || ev.estado_evento === "Vencido") && (
+                        <button className="btn-secondary" onClick={() => setSeleccionado(ev)}>
+                          Registrar evidencia
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {eventosMostrados.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="empty-cell">
+                      No hay eventos con estos filtros.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {seleccionado && (
         <EvidenciaModal

@@ -1,12 +1,19 @@
 import { useState, type FormEvent } from "react";
-import { useApiGet } from "../../api/hooks";
+import { useApiGet, usePaginatedApiGet } from "../../api/hooks";
 import { apiRpc, ApiError } from "../../api/client";
+import Pagination from "../../components/Pagination";
 import type { Asignacion, Cliente, Profesional } from "../../api/types";
+
+const PAGE_SIZE = 20;
 
 export default function AsignarPage() {
   const clientes = useApiGet<Cliente[]>("clientes", { order: "nombre" });
   const profesionales = useApiGet<Profesional[]>("profesionales", { order: "nombre" });
-  const asignaciones = useApiGet<Asignacion[]>("asignaciones", { order: "fecha_asignacion.desc" });
+  // Las activas están acotadas al número de clientes (una por cliente como
+  // máximo), se traen completas. El historial crece con cada reasignación —
+  // ese sí se pagina.
+  const activasQuery = useApiGet<Asignacion[]>("asignaciones", { estado: "eq.Activa", order: "fecha_asignacion.desc" });
+  const historial = usePaginatedApiGet<Asignacion>("asignaciones", { estado: "eq.Inactiva", order: "fecha_fin.desc" }, PAGE_SIZE);
 
   function nombreCliente(id: number) {
     return clientes.data?.find((c) => c.id_cliente === id)?.nombre ?? String(id);
@@ -15,8 +22,12 @@ export default function AsignarPage() {
     return profesionales.data?.find((p) => p.id_profesional === id)?.nombre ?? String(id);
   }
 
-  const activas = asignaciones.data?.filter((a) => a.estado === "Activa") ?? [];
-  const historial = asignaciones.data?.filter((a) => a.estado === "Inactiva") ?? [];
+  function recargarTodo() {
+    activasQuery.recargar();
+    historial.recargar();
+  }
+
+  const activas = activasQuery.data ?? [];
   const idsClientesAsignados = new Set(activas.map((a) => a.id_cliente));
   const clientesSinAsignar = clientes.data?.filter((c) => !idsClientesAsignados.has(c.id_cliente)) ?? [];
 
@@ -32,7 +43,7 @@ export default function AsignarPage() {
       <AsignarSection
         clientesSinAsignar={clientesSinAsignar}
         profesionales={profesionales.data ?? []}
-        onGuardado={() => asignaciones.recargar()}
+        onGuardado={recargarTodo}
       />
 
       <GenerarEventosSection activas={activas} clientes={clientes.data ?? []} />
@@ -41,54 +52,65 @@ export default function AsignarPage() {
         <h2>Clientes asignados</h2>
         {activas.length === 0 && <p className="hint-text">Todavía no hay clientes asignados.</p>}
         {activas.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Profesional</th>
-                <th>Desde</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {activas.map((a) => (
-                <FilaAsignacion
-                  key={a.id_asignacion_cliente}
-                  asignacion={a}
-                  clienteNombre={nombreCliente(a.id_cliente)}
-                  profesionalNombre={nombreProfesional(a.id_profesional)}
-                  profesionales={profesionales.data ?? []}
-                  onReasignado={() => asignaciones.recargar()}
-                />
-              ))}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Profesional</th>
+                  <th>Desde</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {activas.map((a) => (
+                  <FilaAsignacion
+                    key={a.id_asignacion_cliente}
+                    asignacion={a}
+                    clienteNombre={nombreCliente(a.id_cliente)}
+                    profesionalNombre={nombreProfesional(a.id_profesional)}
+                    profesionales={profesionales.data ?? []}
+                    onReasignado={recargarTodo}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
-      {historial.length > 0 && (
+      {(historial.data?.length ?? 0) > 0 && (
         <section className="card">
           <h2>Historial de reasignaciones</h2>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Profesional</th>
-                <th>Desde</th>
-                <th>Hasta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {historial.map((a) => (
-                <tr key={a.id_asignacion_cliente}>
-                  <td>{nombreCliente(a.id_cliente)}</td>
-                  <td>{nombreProfesional(a.id_profesional)}</td>
-                  <td>{a.fecha_asignacion}</td>
-                  <td>{a.fecha_fin}</td>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Profesional</th>
+                  <th>Desde</th>
+                  <th>Hasta</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {historial.data?.map((a) => (
+                  <tr key={a.id_asignacion_cliente}>
+                    <td>{nombreCliente(a.id_cliente)}</td>
+                    <td>{nombreProfesional(a.id_profesional)}</td>
+                    <td>{a.fecha_asignacion}</td>
+                    <td>{a.fecha_fin}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination
+            page={historial.page}
+            pageCount={historial.pageCount}
+            total={historial.total}
+            pageSize={historial.pageSize}
+            onChange={historial.setPage}
+          />
         </section>
       )}
     </div>

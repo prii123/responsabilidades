@@ -18,7 +18,7 @@ export default function Modal({
 }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className={wide ? "modal w-[560px]" : "modal"} onClick={(e) => e.stopPropagation()}>
+      <div className={wide ? "modal max-w-[560px]" : "modal"} onClick={(e) => e.stopPropagation()}>
         {title && <h2>{title}</h2>}
         {children}
       </div>

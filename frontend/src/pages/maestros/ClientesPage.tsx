@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from "react";
-import { useApiGet } from "../../api/hooks";
+import { useApiGet, usePaginatedApiGet } from "../../api/hooks";
 import { apiPost, ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
 import type { Cliente, Municipio } from "../../api/types";
 
 const initialForm = { nombre: "", nit: "", digito_verificacion: "", direccion: "", telefono: "", cod_municipio: "" };
+const PAGE_SIZE = 20;
 
 export default function ClientesPage() {
-  const clientes = useApiGet<Cliente[]>("clientes", { order: "nombre" });
+  const clientes = usePaginatedApiGet<Cliente>("clientes", { order: "nombre" }, PAGE_SIZE);
   const municipios = useApiGet<Municipio[]>("municipios", { order: "nombre" });
   const [modalAbierto, setModalAbierto] = useState(false);
 
@@ -30,34 +32,37 @@ export default function ClientesPage() {
       </div>
 
       {clientes.data && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Razón social</th>
-              <th>NIT</th>
-              <th>Municipio</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clientes.data.map((c) => (
-              <tr key={c.id_cliente}>
-                <td>{c.nombre}</td>
-                <td>
-                  {c.nit}-{c.digito_verificacion}
-                </td>
-                <td>{nombreMunicipio(c.cod_municipio)}</td>
-              </tr>
-            ))}
-            {clientes.data.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={3} className="empty-cell">
-                  Todavía no hay clientes.
-                </td>
+                <th>Razón social</th>
+                <th>NIT</th>
+                <th>Municipio</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {clientes.data.map((c) => (
+                <tr key={c.id_cliente}>
+                  <td>{c.nombre}</td>
+                  <td>
+                    {c.nit}-{c.digito_verificacion}
+                  </td>
+                  <td>{nombreMunicipio(c.cod_municipio)}</td>
+                </tr>
+              ))}
+              {clientes.data.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="empty-cell">
+                    Todavía no hay clientes.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
+      <Pagination page={clientes.page} pageCount={clientes.pageCount} total={clientes.total} pageSize={clientes.pageSize} onChange={clientes.setPage} />
 
       {modalAbierto && (
         <NuevoClienteModal
@@ -150,7 +155,7 @@ function NuevoClienteModal({
         </label>
 
         {error && (
-          <p className="form-error span-2" style={{ gridColumn: "span 2" }}>
+          <p className="form-error span-2">
             {error}
           </p>
         )}

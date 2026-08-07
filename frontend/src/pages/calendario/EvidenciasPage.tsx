@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { useApiGet } from "../../api/hooks";
+import { usePaginatedApiGet } from "../../api/hooks";
 import { verArchivoEvidencia } from "../../api/files";
 import type { VEvidencia } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
+import Pagination from "../../components/Pagination";
+
+const PAGE_SIZE = 25;
 
 export default function EvidenciasPage() {
   const { sesion } = useAuth();
@@ -10,9 +13,10 @@ export default function EvidenciasPage() {
   const [abriendo, setAbriendo] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const evidencias = useApiGet<VEvidencia[]>(
+  const evidencias = usePaginatedApiGet<VEvidencia>(
     "v_evidencias",
     { order: "fecha_realizacion.desc", anio: `eq.${anio}` },
+    PAGE_SIZE,
     [anio]
   );
 
@@ -94,6 +98,13 @@ export default function EvidenciasPage() {
           </tbody>
         </table>
       )}
+      <Pagination
+        page={evidencias.page}
+        pageCount={evidencias.pageCount}
+        total={evidencias.total}
+        pageSize={evidencias.pageSize}
+        onChange={evidencias.setPage}
+      />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { useApiGet } from "../../api/hooks";
+import { useApiGet, usePaginatedApiGet } from "../../api/hooks";
 import { apiPost, ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
+import Pagination from "../../components/Pagination";
 import type {
   Ambito,
   CalendarioFecha,
@@ -11,11 +12,19 @@ import type {
   ResponsabilidadCalendario,
 } from "../../api/types";
 
+const PAGE_SIZE = 20;
+
 export default function CalendariosTributariosPage() {
+  // Sin paginar: además de listarse aquí, alimenta los <select> de los
+  // modales de esta página, que necesitan ver todos los calendarios.
   const calendarios = useApiGet<CalendarioTributario[]>("calendarios_tributarios", { order: "anio.desc,nombre" });
   const municipios = useApiGet<Municipio[]>("municipios", { order: "nombre" });
   const responsabilidades = useApiGet<Responsabilidad[]>("responsabilidades", { order: "nombre" });
-  const asociaciones = useApiGet<ResponsabilidadCalendario[]>("responsabilidad_calendario", { order: "anio.desc" });
+  const asociaciones = usePaginatedApiGet<ResponsabilidadCalendario>(
+    "responsabilidad_calendario",
+    { order: "anio.desc" },
+    PAGE_SIZE
+  );
 
   const [modalCalendario, setModalCalendario] = useState(false);
   const [modalAsociar, setModalAsociar] = useState(false);
@@ -44,39 +53,41 @@ export default function CalendariosTributariosPage() {
           <h2>Calendarios</h2>
           <button onClick={() => setModalCalendario(true)}>+ Nuevo calendario</button>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Año</th>
-              <th>Ámbito</th>
-              <th>Dígitos NIT</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {calendarios.data?.map((c) => (
-              <tr key={c.id_calendario}>
-                <td>{c.nombre}</td>
-                <td>{c.anio}</td>
-                <td>{c.ambito}</td>
-                <td>{c.digitos_nit}</td>
-                <td>
-                  <button className="btn-secondary" onClick={() => setIdCalendarioSeleccionado(c.id_calendario)}>
-                    Ver fechas
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {calendarios.data?.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="empty-cell">
-                  Todavía no hay calendarios.
-                </td>
+                <th>Nombre</th>
+                <th>Año</th>
+                <th>Ámbito</th>
+                <th>Dígitos NIT</th>
+                <th></th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {calendarios.data?.map((c) => (
+                <tr key={c.id_calendario}>
+                  <td>{c.nombre}</td>
+                  <td>{c.anio}</td>
+                  <td>{c.ambito}</td>
+                  <td>{c.digitos_nit}</td>
+                  <td>
+                    <button className="btn-secondary" onClick={() => setIdCalendarioSeleccionado(c.id_calendario)}>
+                      Ver fechas
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {calendarios.data?.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="empty-cell">
+                    Todavía no hay calendarios.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card">
@@ -86,31 +97,40 @@ export default function CalendariosTributariosPage() {
             + Asociar responsabilidad
           </button>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Responsabilidad</th>
-              <th>Año</th>
-              <th>Calendario</th>
-            </tr>
-          </thead>
-          <tbody>
-            {asociaciones.data?.map((a) => (
-              <tr key={`${a.id_responsabilidad}-${a.anio}`}>
-                <td>{nombreResponsabilidad(a.id_responsabilidad)}</td>
-                <td>{a.anio}</td>
-                <td>{nombreCalendario(a.id_calendario)}</td>
-              </tr>
-            ))}
-            {asociaciones.data?.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={3} className="empty-cell">
-                  Ninguna responsabilidad tiene calendario asociado todavía.
-                </td>
+                <th>Responsabilidad</th>
+                <th>Año</th>
+                <th>Calendario</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {asociaciones.data?.map((a) => (
+                <tr key={`${a.id_responsabilidad}-${a.anio}`}>
+                  <td>{nombreResponsabilidad(a.id_responsabilidad)}</td>
+                  <td>{a.anio}</td>
+                  <td>{nombreCalendario(a.id_calendario)}</td>
+                </tr>
+              ))}
+              {asociaciones.data?.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="empty-cell">
+                    Ninguna responsabilidad tiene calendario asociado todavía.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          page={asociaciones.page}
+          pageCount={asociaciones.pageCount}
+          total={asociaciones.total}
+          pageSize={asociaciones.pageSize}
+          onChange={asociaciones.setPage}
+        />
       </section>
 
       {modalCalendario && (
@@ -231,7 +251,7 @@ function NuevoCalendarioModal({
         </label>
 
         {error && (
-          <p className="form-error" style={{ gridColumn: "span 2" }}>
+          <p className="form-error span-2">
             {error}
           </p>
         )}
@@ -251,10 +271,13 @@ function NuevoCalendarioModal({
 
 const initialFecha = { periodo: "", nit_desde: "0", nit_hasta: "9", fecha_limite: "" };
 
+const FECHAS_PAGE_SIZE = 15;
+
 function FechasCalendarioModal({ calendario, onClose }: { calendario: CalendarioTributario; onClose: () => void }) {
-  const fechas = useApiGet<CalendarioFecha[]>(
+  const fechas = usePaginatedApiGet<CalendarioFecha>(
     "calendario_fechas",
     { id_calendario: `eq.${calendario.id_calendario}`, order: "fecha_limite" },
+    FECHAS_PAGE_SIZE,
     [calendario.id_calendario]
   );
   const [form, setForm] = useState(initialFecha);
@@ -284,33 +307,36 @@ function FechasCalendarioModal({ calendario, onClose }: { calendario: Calendario
 
   return (
     <Modal title={`Fechas — ${calendario.nombre} (${calendario.anio})`} onClose={onClose} wide>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Periodo</th>
-            <th>NIT</th>
-            <th>Fecha límite</th>
-          </tr>
-        </thead>
-        <tbody>
-          {fechas.data?.map((f) => (
-            <tr key={f.id_calendario_fecha}>
-              <td>{f.periodo}</td>
-              <td>
-                {f.nit_desde}–{f.nit_hasta}
-              </td>
-              <td>{f.fecha_limite}</td>
-            </tr>
-          ))}
-          {fechas.data?.length === 0 && (
+      <div className="table-scroll">
+        <table className="data-table">
+          <thead>
             <tr>
-              <td colSpan={3} className="empty-cell">
-                Todavía no hay fechas cargadas.
-              </td>
+              <th>Periodo</th>
+              <th>NIT</th>
+              <th>Fecha límite</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {fechas.data?.map((f) => (
+              <tr key={f.id_calendario_fecha}>
+                <td>{f.periodo}</td>
+                <td>
+                  {f.nit_desde}–{f.nit_hasta}
+                </td>
+                <td>{f.fecha_limite}</td>
+              </tr>
+            ))}
+            {fechas.data?.length === 0 && (
+              <tr>
+                <td colSpan={3} className="empty-cell">
+                  Todavía no hay fechas cargadas.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <Pagination page={fechas.page} pageCount={fechas.pageCount} total={fechas.total} pageSize={fechas.pageSize} onChange={fechas.setPage} />
 
       <form className="grid-form" onSubmit={agregar} style={{ marginTop: "1rem", marginBottom: 0 }}>
         <label className="span-2">
@@ -337,7 +363,7 @@ function FechasCalendarioModal({ calendario, onClose }: { calendario: Calendario
         </label>
 
         {error && (
-          <p className="form-error" style={{ gridColumn: "span 2" }}>
+          <p className="form-error span-2">
             {error}
           </p>
         )}

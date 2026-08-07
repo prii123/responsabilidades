@@ -28,29 +28,31 @@ export default function SubgruposPage() {
           <h2>Grupos</h2>
           <button onClick={() => setModalGrupo(true)}>+ Nuevo grupo</button>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Tipo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {grupos.data?.map((g) => (
-              <tr key={g.id_grupo}>
-                <td>{g.nombre}</td>
-                <td>{g.tipo}</td>
-              </tr>
-            ))}
-            {grupos.data?.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={2} className="empty-cell">
-                  Todavía no hay grupos.
-                </td>
+                <th>Nombre</th>
+                <th>Tipo</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {grupos.data?.map((g) => (
+                <tr key={g.id_grupo}>
+                  <td>{g.nombre}</td>
+                  <td>{g.tipo}</td>
+                </tr>
+              ))}
+              {grupos.data?.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="empty-cell">
+                    Todavía no hay grupos.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card">
@@ -60,29 +62,31 @@ export default function SubgruposPage() {
             + Nuevo subgrupo
           </button>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Grupo</th>
-              <th>Subgrupo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {subgrupos.data?.map((s) => (
-              <tr key={s.id_subgrupo}>
-                <td>{nombreDeGrupo(s.id_grupo)}</td>
-                <td>{s.nombre}</td>
-              </tr>
-            ))}
-            {subgrupos.data?.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={2} className="empty-cell">
-                  Todavía no hay subgrupos.
-                </td>
+                <th>Grupo</th>
+                <th>Subgrupo</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {subgrupos.data?.map((s) => (
+                <tr key={s.id_subgrupo}>
+                  <td>{nombreDeGrupo(s.id_grupo)}</td>
+                  <td>{s.nombre}</td>
+                </tr>
+              ))}
+              {subgrupos.data?.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="empty-cell">
+                    Todavía no hay subgrupos.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {modalGrupo && (

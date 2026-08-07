@@ -48,28 +48,30 @@ export default function DashboardPage() {
       {resumen.error && <p className="form-error">{resumen.error}</p>}
 
       {resumen.data && resumen.data.length > 0 && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Profesional</th>
-              <th>Pendientes</th>
-              <th>Vencidos</th>
-              <th>Realizados</th>
-              <th>Cancelados</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resumen.data.map((r) => (
-              <tr key={r.id_profesional}>
-                <td>{r.profesional_nombre}</td>
-                <td>{r.pendientes}</td>
-                <td>{r.vencidos}</td>
-                <td>{r.realizados}</td>
-                <td>{r.cancelados}</td>
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Profesional</th>
+                <th>Pendientes</th>
+                <th>Vencidos</th>
+                <th>Realizados</th>
+                <th>Cancelados</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {resumen.data.map((r) => (
+                <tr key={r.id_profesional}>
+                  <td>{r.profesional_nombre}</td>
+                  <td>{r.pendientes}</td>
+                  <td>{r.vencidos}</td>
+                  <td>{r.realizados}</td>
+                  <td>{r.cancelados}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

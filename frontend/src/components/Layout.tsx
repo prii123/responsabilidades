@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
@@ -24,15 +25,28 @@ const NAV_PROFESIONAL = [
 
 export default function Layout() {
   const { sesion, logout } = useAuth();
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const items = sesion?.rol === "app_admin" ? NAV_ADMIN : NAV_PROFESIONAL;
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      {menuAbierto && <div className="sidebar-backdrop" onClick={() => setMenuAbierto(false)} />}
+
+      {/* El estado abierto/cerrado se fuerza por estilo en línea (gana sobre
+          cualquier regla CSS, evita depender de especificidad de clases) —
+          en desktop (md:) la propia hoja de estilos ya mantiene el sidebar
+          visible sin importar este valor. */}
+      <aside className="sidebar" style={menuAbierto ? { transform: "translateX(0)" } : undefined}>
         <div className="sidebar-title">Gestión de Obligaciones</div>
         <nav>
           {items.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={() => setMenuAbierto(false)}
+              className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
+            >
               {item.label}
             </NavLink>
           ))}
@@ -47,9 +61,25 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-      <main className="content">
-        <Outlet />
-      </main>
+
+      <div className="content-wrapper">
+        <header className="mobile-topbar">
+          <button
+            type="button"
+            className="mobile-menu-btn"
+            onClick={() => setMenuAbierto(true)}
+            aria-label="Abrir menú"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <span className="mobile-topbar-title">Gestión de Obligaciones</span>
+        </header>
+        <main className="content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

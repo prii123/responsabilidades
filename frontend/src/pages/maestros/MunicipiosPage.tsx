@@ -21,29 +21,31 @@ export default function MunicipiosPage() {
       {loading && <p>Cargando…</p>}
       {error && <p className="form-error">{error}</p>}
       {data && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Nombre</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((m) => (
-              <tr key={m.cod_municipio}>
-                <td>{m.cod_municipio}</td>
-                <td>{m.nombre}</td>
-              </tr>
-            ))}
-            {data.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={2} className="empty-cell">
-                  Todavía no hay municipios.
-                </td>
+                <th>Código</th>
+                <th>Nombre</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.map((m) => (
+                <tr key={m.cod_municipio}>
+                  <td>{m.cod_municipio}</td>
+                  <td>{m.nombre}</td>
+                </tr>
+              ))}
+              {data.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="empty-cell">
+                    Todavía no hay municipios.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modalAbierto && (

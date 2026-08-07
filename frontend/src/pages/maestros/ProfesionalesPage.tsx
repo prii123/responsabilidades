@@ -23,33 +23,35 @@ export default function ProfesionalesPage() {
       {loading && <p>Cargando…</p>}
       {error && <p className="form-error">{error}</p>}
       {data && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Teléfono</th>
-              <th>Activo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((p) => (
-              <tr key={p.id_profesional}>
-                <td>{p.nombre}</td>
-                <td>{p.email}</td>
-                <td>{p.telefono}</td>
-                <td>{p.activo ? "Sí" : "No"}</td>
-              </tr>
-            ))}
-            {data.length === 0 && (
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={4} className="empty-cell">
-                  Todavía no hay profesionales.
-                </td>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Activo</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.map((p) => (
+                <tr key={p.id_profesional}>
+                  <td>{p.nombre}</td>
+                  <td>{p.email}</td>
+                  <td>{p.telefono}</td>
+                  <td>{p.activo ? "Sí" : "No"}</td>
+                </tr>
+              ))}
+              {data.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="empty-cell">
+                    Todavía no hay profesionales.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modalAbierto && (
