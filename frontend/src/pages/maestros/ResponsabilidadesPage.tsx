@@ -3,7 +3,7 @@ import { useApiGet, usePaginatedApiGet } from "../../api/hooks";
 import { apiPost, ApiError } from "../../api/client";
 import Modal from "../../components/Modal";
 import Pagination from "../../components/Pagination";
-import type { Municipio, Responsabilidad, SubgrupoResponsabilidad, Tipo, ModoVencimiento } from "../../api/types";
+import type { GrupoResponsabilidad, Municipio, Responsabilidad, SubgrupoResponsabilidad, Tipo, ModoVencimiento } from "../../api/types";
 
 const initialForm = {
   auto_numero: "",
@@ -21,6 +21,7 @@ const PAGE_SIZE = 20;
 
 export default function ResponsabilidadesPage() {
   const responsabilidades = usePaginatedApiGet<Responsabilidad>("responsabilidades", { order: "nombre" }, PAGE_SIZE);
+  const grupos = useApiGet<GrupoResponsabilidad[]>("grupos_responsabilidad", { order: "nombre" });
   const subgrupos = useApiGet<SubgrupoResponsabilidad[]>("subgrupos_responsabilidad", { order: "nombre" });
   const municipios = useApiGet<Municipio[]>("municipios", { order: "nombre" });
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -85,6 +86,7 @@ export default function ResponsabilidadesPage() {
 
       {modalAbierto && (
         <NuevaResponsabilidadModal
+          grupos={grupos.data ?? []}
           subgrupos={subgrupos.data ?? []}
           municipios={municipios.data ?? []}
           onClose={() => setModalAbierto(false)}
@@ -99,17 +101,23 @@ export default function ResponsabilidadesPage() {
 }
 
 function NuevaResponsabilidadModal({
+  grupos,
   subgrupos,
   municipios,
   onClose,
   onCreado,
 }: {
+  grupos: GrupoResponsabilidad[];
   subgrupos: SubgrupoResponsabilidad[];
   municipios: Municipio[];
   onClose: () => void;
   onCreado: () => void;
 }) {
   const [form, setForm] = useState(initialForm);
+
+  function nombreGrupo(id: number) {
+    return grupos.find((g) => g.id_grupo === id)?.nombre ?? id;
+  }
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -156,7 +164,7 @@ function NuevaResponsabilidadModal({
             <option value="">Seleccione…</option>
             {subgrupos.map((s) => (
               <option key={s.id_subgrupo} value={s.id_subgrupo}>
-                {s.nombre}
+                {nombreGrupo(s.id_grupo)} — {s.nombre}
               </option>
             ))}
           </select>

@@ -19,8 +19,8 @@ export default function SubgruposPage() {
     <div className="page">
       <h1>Grupo y Subgrupo de Responsabilidad</h1>
       <p className="page-subtitle">
-        Grupo = nivel territorial de la obligación (Nacional / Departamental / Municipal). Subgrupo = tipo de tributo,
-        depende del grupo.
+        Grupo = área de negocio de la obligación (Comercial / Legal / Tributario). Subgrupo = nivel territorial
+        (Nacional / Departamental / Municipal), depende del grupo.
       </p>
 
       <section className="card">
@@ -33,19 +33,17 @@ export default function SubgruposPage() {
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Tipo</th>
               </tr>
             </thead>
             <tbody>
               {grupos.data?.map((g) => (
                 <tr key={g.id_grupo}>
                   <td>{g.nombre}</td>
-                  <td>{g.tipo}</td>
                 </tr>
               ))}
               {grupos.data?.length === 0 && (
                 <tr>
-                  <td colSpan={2} className="empty-cell">
+                  <td colSpan={1} className="empty-cell">
                     Todavía no hay grupos.
                   </td>
                 </tr>
@@ -115,7 +113,6 @@ export default function SubgruposPage() {
 
 function NuevoGrupoModal({ onClose, onCreado }: { onClose: () => void; onCreado: () => void }) {
   const [nombre, setNombre] = useState("");
-  const [tipo, setTipo] = useState<Ambito | "">("");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -124,7 +121,7 @@ function NuevoGrupoModal({ onClose, onCreado }: { onClose: () => void; onCreado:
     setError(null);
     setGuardando(true);
     try {
-      await apiPost("grupos_responsabilidad", { nombre, tipo });
+      await apiPost("grupos_responsabilidad", { nombre });
       onCreado();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo crear el grupo");
@@ -138,16 +135,7 @@ function NuevoGrupoModal({ onClose, onCreado }: { onClose: () => void; onCreado:
       <form onSubmit={crear} className="flex flex-col gap-4">
         <label>
           Nombre
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus />
-        </label>
-        <label>
-          Tipo
-          <select value={tipo} onChange={(e) => setTipo(e.target.value as Ambito)} required>
-            <option value="">Seleccione…</option>
-            <option value="Nacional">Nacional</option>
-            <option value="Departamental">Departamental</option>
-            <option value="Municipal">Municipal</option>
-          </select>
+          <input placeholder="Ej. Comercial" value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus />
         </label>
 
         {error && <p className="form-error">{error}</p>}
@@ -175,7 +163,7 @@ function NuevoSubgrupoModal({
   onCreado: () => void;
 }) {
   const [idGrupo, setIdGrupo] = useState("");
-  const [nombre, setNombre] = useState("");
+  const [nombre, setNombre] = useState<Ambito | "">("");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -208,8 +196,13 @@ function NuevoSubgrupoModal({
           </select>
         </label>
         <label>
-          Nombre del subgrupo
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+          Nivel territorial
+          <select value={nombre} onChange={(e) => setNombre(e.target.value as Ambito)} required>
+            <option value="">Seleccione…</option>
+            <option value="Nacional">Nacional</option>
+            <option value="Departamental">Departamental</option>
+            <option value="Municipal">Municipal</option>
+          </select>
         </label>
 
         {error && <p className="form-error">{error}</p>}

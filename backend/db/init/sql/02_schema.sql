@@ -16,20 +16,20 @@ CREATE TABLE app.municipios (
   nombre        text NOT NULL
 );
 
+-- Área de negocio de la responsabilidad (Comercial / Legal / Tributario).
+-- El nivel territorial (antes una columna aparte acá) ahora vive un nivel
+-- más abajo, en subgrupo_responsabilidad.nombre.
 CREATE TABLE app.grupo_responsabilidad (
   id_grupo serial PRIMARY KEY,
-  nombre   text NOT NULL UNIQUE,
-  -- Nivel territorial del grupo. Coincidía con "nombre" en los 3 grupos
-  -- originales del documento fuente, pero se modela aparte para que el
-  -- nombre pueda diversificarse (ej. distintas autoridades municipales) sin
-  -- perder una clasificación territorial fiable para filtrar/validar.
-  tipo     text NOT NULL CHECK (tipo IN ('Nacional', 'Departamental', 'Municipal'))
+  nombre   text NOT NULL UNIQUE
 );
 
+-- Nivel territorial de la obligación, dentro de cada grupo (ej. "Tributario
+-- / Nacional" para las obligaciones DIAN, "Legal / Municipal" para ICA).
 CREATE TABLE app.subgrupo_responsabilidad (
   id_subgrupo serial PRIMARY KEY,
   id_grupo    int NOT NULL REFERENCES app.grupo_responsabilidad (id_grupo),
-  nombre      text NOT NULL,
+  nombre      text NOT NULL CHECK (nombre IN ('Nacional', 'Departamental', 'Municipal')),
   UNIQUE (id_grupo, nombre)
 );
 

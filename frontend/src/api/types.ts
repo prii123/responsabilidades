@@ -20,13 +20,12 @@ export interface Municipio {
 export interface GrupoResponsabilidad {
   id_grupo: number;
   nombre: string;
-  tipo: Ambito;
 }
 
 export interface SubgrupoResponsabilidad {
   id_subgrupo: number;
   id_grupo: number;
-  nombre: string;
+  nombre: Ambito;
 }
 
 export interface Responsabilidad {
