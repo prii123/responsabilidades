@@ -109,7 +109,12 @@ CREATE VIEW api.v_evidencias WITH (security_invoker = true) AS
   JOIN app.responsabilidad r ON r.id_responsabilidad = rc.id_responsabilidad
   JOIN app.clientes c ON c.id_cliente = rc.id_cliente;
 
--- Resumen para el dashboard.
+-- Resumen para el dashboard, por profesional.
+-- horas_estimadas: suma de responsabilidad.horas_estimadas de cada evento
+-- (una responsabilidad con varios periodos al año, ej. IVA bimestral, suma
+-- una vez por evento generado — carga real de horas del año, no por trámite).
+-- horas_registradas: suma de evidencias.horas_dedicadas (lo que de verdad se
+-- registró al marcar el evento como realizado).
 CREATE VIEW api.dashboard_resumen WITH (security_invoker = true) AS
   SELECT
     ap.id_profesional,
@@ -117,11 +122,40 @@ CREATE VIEW api.dashboard_resumen WITH (security_invoker = true) AS
     count(*) FILTER (WHERE ec.estado_evento = 'Pendiente')        AS pendientes,
     count(*) FILTER (WHERE ec.estado_evento = 'Vencido')          AS vencidos,
     count(*) FILTER (WHERE ec.estado_evento IN ('Realizado', 'Realizado vencido')) AS realizados,
-    count(*) FILTER (WHERE ec.estado_evento = 'Cancelado')        AS cancelados
+    count(*) FILTER (WHERE ec.estado_evento = 'Cancelado')        AS cancelados,
+    count(*)                                                      AS total_eventos,
+    coalesce(sum(r.horas_estimadas), 0)                           AS horas_estimadas,
+    (SELECT coalesce(sum(e.horas_dedicadas), 0)
+       FROM app.evidencias e
+       WHERE e.id_profesional = ap.id_profesional)                AS horas_registradas
   FROM app.eventos_calendario ec
   JOIN app.asignacion_cliente_profesional ap ON ap.id_asignacion_cliente = ec.id_asignacion_cliente
   JOIN app.profesionales p ON p.id_profesional = ap.id_profesional
+  JOIN app.responsabilidades_cliente rc ON rc.id_responsabilidad_cliente = ec.id_responsabilidad_cliente
+  JOIN app.responsabilidad r ON r.id_responsabilidad = rc.id_responsabilidad
   GROUP BY ap.id_profesional, p.nombre;
+
+-- Mismo resumen, agrupado por cliente en vez de profesional.
+CREATE VIEW api.dashboard_resumen_cliente WITH (security_invoker = true) AS
+  SELECT
+    rc.id_cliente,
+    c.nombre AS cliente_nombre,
+    count(*) FILTER (WHERE ec.estado_evento = 'Pendiente')        AS pendientes,
+    count(*) FILTER (WHERE ec.estado_evento = 'Vencido')          AS vencidos,
+    count(*) FILTER (WHERE ec.estado_evento IN ('Realizado', 'Realizado vencido')) AS realizados,
+    count(*) FILTER (WHERE ec.estado_evento = 'Cancelado')        AS cancelados,
+    count(*)                                                      AS total_eventos,
+    coalesce(sum(r.horas_estimadas), 0)                           AS horas_estimadas,
+    (SELECT coalesce(sum(e2.horas_dedicadas), 0)
+       FROM app.evidencias e2
+       JOIN app.eventos_calendario ec2 ON ec2.id_evento = e2.id_evento
+       JOIN app.responsabilidades_cliente rc2 ON rc2.id_responsabilidad_cliente = ec2.id_responsabilidad_cliente
+       WHERE rc2.id_cliente = rc.id_cliente)                      AS horas_registradas
+  FROM app.eventos_calendario ec
+  JOIN app.responsabilidades_cliente rc ON rc.id_responsabilidad_cliente = ec.id_responsabilidad_cliente
+  JOIN app.clientes c ON c.id_cliente = rc.id_cliente
+  JOIN app.responsabilidad r ON r.id_responsabilidad = rc.id_responsabilidad
+  GROUP BY rc.id_cliente, c.nombre;
 
 -- ---------- Usuarios (cuentas de acceso, ver 03_auth.sql) ----------
 -- Solo lectura desde PostgREST: crear/activar/desactivar usuarios se hace en
@@ -192,7 +226,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO app_admin;
 
 GRANT SELECT, UPDATE ON api.eventos TO app_admin;
-GRANT SELECT ON api.v_eventos, api.v_evidencias, api.dashboard_resumen TO app_admin;
+GRANT SELECT ON api.v_eventos, api.v_evidencias, api.dashboard_resumen, api.dashboard_resumen_cliente TO app_admin;
 GRANT SELECT ON api.usuarios TO app_admin;
 
 GRANT EXECUTE ON FUNCTION api.asignar_cliente_profesional(int, int, int) TO app_admin;
@@ -224,7 +258,7 @@ GRANT SELECT ON
   api.responsabilidades, api.profesionales, api.clientes,
   api.calendarios_tributarios, api.calendario_fechas, api.responsabilidad_calendario,
   api.responsabilidades_cliente, api.asignaciones, api.eventos, api.v_eventos,
-  api.evidencias, api.v_evidencias, api.dashboard_resumen
+  api.evidencias, api.v_evidencias, api.dashboard_resumen, api.dashboard_resumen_cliente
 TO app_profesional;
 
 GRANT EXECUTE ON FUNCTION api.registrar_evidencia(int, text, text, numeric) TO app_profesional;

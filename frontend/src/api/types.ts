@@ -172,6 +172,21 @@ export interface DashboardResumen {
   vencidos: number;
   realizados: number;
   cancelados: number;
+  total_eventos: number;
+  horas_estimadas: number;
+  horas_registradas: number;
+}
+
+export interface DashboardResumenCliente {
+  id_cliente: number;
+  cliente_nombre: string;
+  pendientes: number;
+  vencidos: number;
+  realizados: number;
+  cancelados: number;
+  total_eventos: number;
+  horas_estimadas: number;
+  horas_registradas: number;
 }
 
 export interface Usuario {
