@@ -33,9 +33,14 @@ CREATE TABLE app.subgrupo_responsabilidad (
   UNIQUE (id_grupo, nombre)
 );
 
+-- Genera auto_numero solo (0001, 0002...): antes había que escribirlo a
+-- mano en el formulario de creación, y era fácil repetir uno ya usado.
+CREATE SEQUENCE app.responsabilidad_auto_numero_seq;
+
 CREATE TABLE app.responsabilidad (
   id_responsabilidad serial PRIMARY KEY,
-  auto_numero        varchar(10) NOT NULL,
+  auto_numero         varchar(10) NOT NULL
+                         DEFAULT lpad(nextval('app.responsabilidad_auto_numero_seq')::text, 4, '0'),
   codigo_dian         varchar(10) NOT NULL,
   codigo_formulario   varchar(10) NOT NULL,
   -- Código único = AutoNumero + CodigoDIAN + CodMunicipio + CodigoFormulario (ver documento fuente)

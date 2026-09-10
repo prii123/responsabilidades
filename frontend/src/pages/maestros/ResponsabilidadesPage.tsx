@@ -6,7 +6,6 @@ import Pagination from "../../components/Pagination";
 import type { GrupoResponsabilidad, Municipio, Responsabilidad, SubgrupoResponsabilidad, Tipo, ModoVencimiento } from "../../api/types";
 
 const initialForm = {
-  auto_numero: "",
   codigo_dian: "",
   codigo_formulario: "",
   nombre: "",
@@ -143,12 +142,8 @@ function NuevaResponsabilidadModal({
     <Modal title="Nueva responsabilidad" onClose={onClose} wide>
       <form className="grid-form" onSubmit={crear} style={{ marginBottom: 0 }}>
         <label>
-          Auto número
-          <input value={form.auto_numero} onChange={(e) => setForm({ ...form, auto_numero: e.target.value })} required maxLength={10} autoFocus />
-        </label>
-        <label>
           Código DIAN
-          <input value={form.codigo_dian} onChange={(e) => setForm({ ...form, codigo_dian: e.target.value })} required maxLength={10} />
+          <input value={form.codigo_dian} onChange={(e) => setForm({ ...form, codigo_dian: e.target.value })} required maxLength={10} autoFocus />
         </label>
         <label>
           Código formulario

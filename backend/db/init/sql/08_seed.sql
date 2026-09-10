@@ -32,15 +32,15 @@ CROSS JOIN (VALUES ('Nacional'), ('Departamental'), ('Municipal')) AS n(nombre);
 -- horas_estimadas: referencia orientativa de carga de trabajo por
 -- responsabilidad (declaración simple ~1-2h, anual/compleja ~6-15h).
 INSERT INTO app.responsabilidad
-  (auto_numero, codigo_dian, codigo_formulario, nombre, id_subgrupo, cod_municipio, tipo, sancion, horas_estimadas)
+  (codigo_dian, codigo_formulario, nombre, id_subgrupo, cod_municipio, tipo, sancion, horas_estimadas)
 VALUES
-  ('0001', '48', '300', 'IVA Responsable',
+  ('48', '300', 'IVA Responsable',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 2),
-  ('0002', '07', '350', 'Retención en la Fuente',
+  ('07', '350', 'Retención en la Fuente',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 1.5),
-  ('0003', '05', '110', 'Renta Régimen Ordinario',
+  ('05', '110', 'Renta Régimen Ordinario',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 8),
-  ('0004', '52', '010', 'Facturador Electrónico',
+  ('52', '010', 'Facturador Electrónico',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', false, 1);
 
 -- Resto de obligaciones del calendario DIAN 2026 (Calendario_Tributario_2026.pdf).
@@ -53,47 +53,47 @@ VALUES
 -- más que categorizar internamente. Las FECHAS sí están verificadas contra
 -- el PDF oficial.
 INSERT INTO app.responsabilidad
-  (auto_numero, codigo_dian, codigo_formulario, nombre, id_subgrupo, cod_municipio, tipo, sancion, horas_estimadas)
+  (codigo_dian, codigo_formulario, nombre, id_subgrupo, cod_municipio, tipo, sancion, horas_estimadas)
 VALUES
-  ('0005', '02', '110', 'Renta Grandes Contribuyentes',
+  ('02', '110', 'Renta Grandes Contribuyentes',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 12),
-  ('0006', '05', '210', 'Renta Personas Naturales',
+  ('05', '210', 'Renta Personas Naturales',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 6),
-  ('0007', '48', '300', 'IVA Cuatrimestral',
+  ('48', '300', 'IVA Cuatrimestral',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 2),
-  ('0008', '50', '420', 'Impuesto al Patrimonio',
+  ('50', '420', 'Impuesto al Patrimonio',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 5),
-  ('0009', '47', '260', 'RST - Declaración Anual Consolidada',
+  ('47', '260', 'RST - Declaración Anual Consolidada',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 6),
-  ('0010', '47', '260-IVA', 'RST - Consolidada de IVA',
+  ('47', '260-IVA', 'RST - Consolidada de IVA',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 3),
-  ('0011', '47', '2593', 'RST - Anticipo Bimestral',
+  ('47', '2593', 'RST - Anticipo Bimestral',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 1.5),
-  ('0012', '14', '120', 'Precios de Transferencia - Declaración Informativa',
+  ('14', '120', 'Precios de Transferencia - Declaración Informativa',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 10),
-  ('0013', '14', '130', 'Precios de Transferencia - Documentación Comprobatoria',
+  ('14', '130', 'Precios de Transferencia - Documentación Comprobatoria',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 15),
-  ('0014', 'CBC', 'CbC', 'Informe País por País',
+  ('CBC', 'CbC', 'Informe País por País',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 8),
-  ('0015', 'PES', '490', 'PES - Pagos Anticipados Bimestrales',
+  ('PES', '490', 'PES - Pagos Anticipados Bimestrales',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 2),
-  ('0016', 'PES', '160', 'PES - Declaración Anual',
+  ('PES', '160', 'PES - Declaración Anual',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 6),
-  ('0017', '35', '310', 'Impuesto Nacional al Consumo',
+  ('35', '310', 'Impuesto Nacional al Consumo',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 2),
-  ('0018', '06', '160', 'Activos en el Exterior',
+  ('06', '160', 'Activos en el Exterior',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 4),
-  ('0019', '33', '350-GAS', 'Impuesto Nacional a la Gasolina y ACPM',
+  ('33', '350-GAS', 'Impuesto Nacional a la Gasolina y ACPM',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 2),
-  ('0020', '55', '490-CO2', 'Impuesto Nacional al Carbono',
+  ('55', '490-CO2', 'Impuesto Nacional al Carbono',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 1.5),
-  ('0021', '37', '325', 'IVA Servicios desde el Exterior',
+  ('37', '325', 'IVA Servicios desde el Exterior',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 2),
-  ('0022', 'PLAST', '490-PLA', 'Productos Plásticos de un Solo Uso',
+  ('PLAST', '490-PLA', 'Productos Plásticos de un Solo Uso',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 1.5),
-  ('0023', 'SALUD', '490-BEB', 'Bebidas y Alimentos Ultraprocesados',
+  ('SALUD', '490-BEB', 'Bebidas y Alimentos Ultraprocesados',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 1.5),
-  ('0024', 'RUB', 'RUB', 'RUB - Actualización de Beneficiarios Finales',
+  ('RUB', 'RUB', 'RUB - Actualización de Beneficiarios Finales',
     (SELECT s.id_subgrupo FROM app.subgrupo_responsabilidad s JOIN app.grupo_responsabilidad g ON g.id_grupo = s.id_grupo WHERE g.nombre = 'Tributario' AND s.nombre = 'Nacional'), '11001', 'Obligatoria', true, 1);
 
 INSERT INTO app.profesionales (nombre, email, telefono) VALUES
