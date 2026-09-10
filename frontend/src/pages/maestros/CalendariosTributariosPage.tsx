@@ -14,16 +14,31 @@ import type {
 
 const PAGE_SIZE = 20;
 
+const ANIO_ACTUAL = new Date().getFullYear();
+// Rango fijo (sin ida y vuelta extra al API): incluye años futuros aunque
+// todavía no tengan ningún calendario cargado — ver la lista vacía es la
+// señal de "falta armar el calendario de ese año".
+const ANIOS_DISPONIBLES = [ANIO_ACTUAL + 2, ANIO_ACTUAL + 1, ANIO_ACTUAL, ANIO_ACTUAL - 1];
+
 export default function CalendariosTributariosPage() {
-  // Sin paginar: además de listarse aquí, alimenta los <select> de los
-  // modales de esta página, que necesitan ver todos los calendarios.
-  const calendarios = useApiGet<CalendarioTributario[]>("calendarios_tributarios", { order: "anio.desc,nombre" });
+  const [anio, setAnio] = useState(ANIO_ACTUAL);
+
+  // Filtrados por año en el servidor: con ~20 calendarios por año (DIAN
+  // 2026), traer todos los años a la vez no escala. Los <select> de los
+  // modales de esta página, entonces, solo ofrecen los calendarios del año
+  // que se está viendo — coherente con que la asociación también es por año.
+  const calendarios = useApiGet<CalendarioTributario[]>(
+    "calendarios_tributarios",
+    { anio: `eq.${anio}`, order: "nombre" },
+    [anio]
+  );
   const municipios = useApiGet<Municipio[]>("municipios", { order: "nombre" });
   const responsabilidades = useApiGet<Responsabilidad[]>("responsabilidades", { order: "nombre" });
   const asociaciones = usePaginatedApiGet<ResponsabilidadCalendario>(
     "responsabilidad_calendario",
-    { order: "anio.desc" },
-    PAGE_SIZE
+    { anio: `eq.${anio}`, order: "anio.desc" },
+    PAGE_SIZE,
+    [anio]
   );
 
   const [modalCalendario, setModalCalendario] = useState(false);
@@ -47,6 +62,19 @@ export default function CalendariosTributariosPage() {
         generar eventos. La fecha límite de cada periodo depende del último dígito (o los dos últimos) del NIT del
         cliente.
       </p>
+
+      <form className="inline-form" onSubmit={(e) => e.preventDefault()}>
+        <label>
+          Año
+          <select value={anio} onChange={(e) => setAnio(Number(e.target.value))}>
+            {ANIOS_DISPONIBLES.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </label>
+      </form>
 
       <section className="card">
         <div className="section-header">
@@ -136,6 +164,7 @@ export default function CalendariosTributariosPage() {
       {modalCalendario && (
         <NuevoCalendarioModal
           municipios={municipios.data ?? []}
+          anioFiltrado={anio}
           onClose={() => setModalCalendario(false)}
           onCreado={() => {
             setModalCalendario(false);
@@ -148,6 +177,7 @@ export default function CalendariosTributariosPage() {
         <AsociarModal
           responsabilidades={responsabilidades.data ?? []}
           calendarios={calendarios.data ?? []}
+          anioFiltrado={anio}
           onClose={() => setModalAsociar(false)}
           onCreado={() => {
             setModalAsociar(false);
@@ -163,24 +193,28 @@ export default function CalendariosTributariosPage() {
   );
 }
 
-const initialCalendario = {
-  nombre: "",
-  anio: String(new Date().getFullYear()),
-  ambito: "Nacional" as Ambito,
-  cod_municipio: "",
-  digitos_nit: "1" as "1" | "2",
-};
+function estadoInicialCalendario(anio: number) {
+  return {
+    nombre: "",
+    anio: String(anio),
+    ambito: "Nacional" as Ambito,
+    cod_municipio: "",
+    digitos_nit: "1" as "1" | "2",
+  };
+}
 
 function NuevoCalendarioModal({
   municipios,
+  anioFiltrado,
   onClose,
   onCreado,
 }: {
   municipios: Municipio[];
+  anioFiltrado: number;
   onClose: () => void;
   onCreado: () => void;
 }) {
-  const [form, setForm] = useState(initialCalendario);
+  const [form, setForm] = useState(() => estadoInicialCalendario(anioFiltrado));
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -384,20 +418,24 @@ function FechasCalendarioModal({ calendario, onClose }: { calendario: Calendario
   );
 }
 
-const initialAsociacion = { id_responsabilidad: "", anio: String(new Date().getFullYear()), id_calendario: "" };
+function estadoInicialAsociacion(anio: number) {
+  return { id_responsabilidad: "", anio: String(anio), id_calendario: "" };
+}
 
 function AsociarModal({
   responsabilidades,
   calendarios,
+  anioFiltrado,
   onClose,
   onCreado,
 }: {
   responsabilidades: Responsabilidad[];
   calendarios: CalendarioTributario[];
+  anioFiltrado: number;
   onClose: () => void;
   onCreado: () => void;
 }) {
-  const [form, setForm] = useState(initialAsociacion);
+  const [form, setForm] = useState(() => estadoInicialAsociacion(anioFiltrado));
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
