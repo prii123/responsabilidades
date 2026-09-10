@@ -42,6 +42,7 @@ export interface Responsabilidad {
   sancion: boolean;
   modo_vencimiento: ModoVencimiento;
   activo: boolean;
+  horas_estimadas: number | null;
 }
 
 export interface Profesional {

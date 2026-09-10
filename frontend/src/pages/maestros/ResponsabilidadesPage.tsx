@@ -15,6 +15,7 @@ const initialForm = {
   tipo: "Obligatoria" as Tipo,
   sancion: false,
   modo_vencimiento: "CALENDARIO_NIT" as ModoVencimiento,
+  horas_estimadas: "",
 };
 const PAGE_SIZE = 20;
 
@@ -47,6 +48,7 @@ export default function ResponsabilidadesPage() {
                 <th>Tipo</th>
                 <th>Sanción</th>
                 <th>Vencimiento</th>
+                <th>Horas estimadas</th>
               </tr>
             </thead>
             <tbody>
@@ -59,11 +61,12 @@ export default function ResponsabilidadesPage() {
                   <td>{r.tipo}</td>
                   <td>{r.sancion ? "⚠ Sí" : "No"}</td>
                   <td>{r.modo_vencimiento === "CALENDARIO_NIT" ? "Calendario por NIT" : "Fecha fija"}</td>
+                  <td>{r.horas_estimadas ?? "—"}</td>
                 </tr>
               ))}
               {responsabilidades.data.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="empty-cell">
+                  <td colSpan={6} className="empty-cell">
                     Todavía no hay responsabilidades.
                   </td>
                 </tr>
@@ -118,6 +121,7 @@ function NuevaResponsabilidadModal({
       await apiPost("responsabilidades", {
         ...form,
         id_subgrupo: Number(form.id_subgrupo),
+        horas_estimadas: form.horas_estimadas ? Number(form.horas_estimadas) : null,
       });
       onCreado();
     } catch (err) {
@@ -184,6 +188,17 @@ function NuevaResponsabilidadModal({
             <option value="CALENDARIO_NIT">Según calendario tributario (por NIT)</option>
             <option value="FECHA_FIJA">Fecha fija</option>
           </select>
+        </label>
+        <label>
+          Horas estimadas
+          <input
+            type="number"
+            min={0}
+            step="0.5"
+            placeholder="Opcional"
+            value={form.horas_estimadas}
+            onChange={(e) => setForm({ ...form, horas_estimadas: e.target.value })}
+          />
         </label>
         <label className="checkbox-label">
           <input type="checkbox" checked={form.sancion} onChange={(e) => setForm({ ...form, sancion: e.target.checked })} />

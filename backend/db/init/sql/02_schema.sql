@@ -55,6 +55,10 @@ CREATE TABLE app.responsabilidad (
   modo_vencimiento    text NOT NULL DEFAULT 'CALENDARIO_NIT'
                          CHECK (modo_vencimiento IN ('CALENDARIO_NIT', 'FECHA_FIJA')),
   activo              boolean NOT NULL DEFAULT true,
+  -- Horas que se estima que toma cumplir esta responsabilidad (referencia
+  -- para planear carga de trabajo). Opcional — comparar contra
+  -- evidencias.horas_dedicadas (lo realmente registrado) queda para más adelante.
+  horas_estimadas     numeric(5, 2) CHECK (horas_estimadas >= 0),
   UNIQUE (auto_numero, codigo_dian, cod_municipio, codigo_formulario)
 );
 
