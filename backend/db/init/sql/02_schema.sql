@@ -41,11 +41,19 @@ CREATE TABLE app.responsabilidad (
   id_responsabilidad serial PRIMARY KEY,
   auto_numero         varchar(10) NOT NULL
                          DEFAULT lpad(nextval('app.responsabilidad_auto_numero_seq')::text, 4, '0'),
-  codigo_dian         varchar(10) NOT NULL,
-  codigo_formulario   varchar(10) NOT NULL,
-  -- Código único = AutoNumero + CodigoDIAN + CodMunicipio + CodigoFormulario (ver documento fuente)
+  -- Opcionales: no toda responsabilidad tiene código DIAN/formulario (ej. una
+  -- obligación puramente comercial o legal, sin equivalente en el RUT). En el
+  -- formulario se habilitan juntos con un check; por eso van o los dos o ninguno.
+  codigo_dian         varchar(10),
+  codigo_formulario   varchar(10),
+  -- Código único = AutoNumero + CodigoDIAN + CodMunicipio + CodigoFormulario
+  -- (ver documento fuente). Sin código DIAN/formulario, queda solo
+  -- AutoNumero-Municipio. (concat_ws sería más simple pero Postgres no lo
+  -- permite en columnas generadas: no está marcado IMMUTABLE.)
   codigo_unico        text GENERATED ALWAYS AS (
-                         auto_numero || '-' || codigo_dian || '-' || cod_municipio || '-' || codigo_formulario
+                         CASE WHEN codigo_dian IS NULL THEN auto_numero || '-' || cod_municipio
+                              ELSE auto_numero || '-' || codigo_dian || '-' || cod_municipio || '-' || codigo_formulario
+                         END
                        ) STORED,
   nombre              text NOT NULL,
   id_subgrupo         int NOT NULL REFERENCES app.subgrupo_responsabilidad (id_subgrupo),
@@ -64,6 +72,7 @@ CREATE TABLE app.responsabilidad (
   -- para planear carga de trabajo). Opcional — comparar contra
   -- evidencias.horas_dedicadas (lo realmente registrado) queda para más adelante.
   horas_estimadas     numeric(5, 2) CHECK (horas_estimadas >= 0),
+  CHECK ((codigo_dian IS NULL) = (codigo_formulario IS NULL)),
   UNIQUE (auto_numero, codigo_dian, cod_municipio, codigo_formulario)
 );
 

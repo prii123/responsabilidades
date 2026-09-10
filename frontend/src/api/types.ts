@@ -31,8 +31,8 @@ export interface SubgrupoResponsabilidad {
 export interface Responsabilidad {
   id_responsabilidad: number;
   auto_numero: string;
-  codigo_dian: string;
-  codigo_formulario: string;
+  codigo_dian: string | null;
+  codigo_formulario: string | null;
   codigo_unico: string;
   nombre: string;
   id_subgrupo: number;

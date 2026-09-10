@@ -113,6 +113,7 @@ function NuevaResponsabilidadModal({
   onCreado: () => void;
 }) {
   const [form, setForm] = useState(initialForm);
+  const [tieneCodigoDian, setTieneCodigoDian] = useState(true);
 
   function nombreGrupo(id: number) {
     return grupos.find((g) => g.id_grupo === id)?.nombre ?? id;
@@ -127,6 +128,8 @@ function NuevaResponsabilidadModal({
     try {
       await apiPost("responsabilidades", {
         ...form,
+        codigo_dian: tieneCodigoDian ? form.codigo_dian : null,
+        codigo_formulario: tieneCodigoDian ? form.codigo_formulario : null,
         id_subgrupo: Number(form.id_subgrupo),
         horas_estimadas: form.horas_estimadas ? Number(form.horas_estimadas) : null,
       });
@@ -141,18 +144,40 @@ function NuevaResponsabilidadModal({
   return (
     <Modal title="Nueva responsabilidad" onClose={onClose} wide>
       <form className="grid-form" onSubmit={crear} style={{ marginBottom: 0 }}>
-        <label>
-          Código DIAN
-          <input value={form.codigo_dian} onChange={(e) => setForm({ ...form, codigo_dian: e.target.value })} required maxLength={10} autoFocus />
-        </label>
-        <label>
-          Código formulario
-          <input value={form.codigo_formulario} onChange={(e) => setForm({ ...form, codigo_formulario: e.target.value })} required maxLength={10} />
-        </label>
         <label className="span-2">
           Nombre
-          <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
+          <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required autoFocus />
         </label>
+        <label className="checkbox-label span-2">
+          <input
+            type="checkbox"
+            checked={tieneCodigoDian}
+            onChange={(e) => setTieneCodigoDian(e.target.checked)}
+          />
+          Tiene código DIAN y de formulario (no todas las obligaciones lo tienen, ej. comerciales o legales)
+        </label>
+        {tieneCodigoDian && (
+          <>
+            <label>
+              Código DIAN
+              <input
+                value={form.codigo_dian}
+                onChange={(e) => setForm({ ...form, codigo_dian: e.target.value })}
+                required={tieneCodigoDian}
+                maxLength={10}
+              />
+            </label>
+            <label>
+              Código formulario
+              <input
+                value={form.codigo_formulario}
+                onChange={(e) => setForm({ ...form, codigo_formulario: e.target.value })}
+                required={tieneCodigoDian}
+                maxLength={10}
+              />
+            </label>
+          </>
+        )}
         <label>
           Subgrupo
           <select value={form.id_subgrupo} onChange={(e) => setForm({ ...form, id_subgrupo: e.target.value })} required>
